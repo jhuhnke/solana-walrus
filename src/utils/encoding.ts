@@ -1,6 +1,19 @@
+import { getWalrusClient } from '../walrus/client'; 
+import { getFullnodeUrl, SuiClient } from '@mysten/sui/client'; 
+
 export async function getStorageQuote(bytes: number): Promise<number> {
-    // Placeholder: fetch price from Walrus
-    return 0.01 * (bytes / 1000); 
+	const dummyFile = new Uint8Array(bytes);
+	const walrusClient = getWalrusClient();
+
+	const encoded = await walrusClient.encodeBlob(dummyFile);
+	const quote = await walrusClient.getQuote({
+		blobId: encoded.blobId,
+		size: bytes,
+		epochs: 3,
+		deletable: true,
+	});
+
+	return quote.total;
 }
 
 export async function hashFile(file: File): Promise<string> {

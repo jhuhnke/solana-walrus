@@ -2,6 +2,7 @@ import { getStorageQuote, hashFile } from "../utils/encoding";
 import { createAndSendWormholeMsg } from "../bridge/wormhole";
 import { PublicKey } from "@solana/web3.js";
 import { UploadOptions } from "../types";
+import { getWalrusClient } from "./client";
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
     const { file, wallet, suiReceiverAddress } = options; 
