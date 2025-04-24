@@ -6,14 +6,20 @@ export interface SDKConfig {
     walrusOptions?: Partial<WalrusClientOptions>; 
 }
 
-let currentConfig: SDKConfig = { 
-    network: 'testnet', 
-}; 
+
+let currentConfig: SDKConfig | null = null;
 
 export function configureSDK(config: SDKConfig) {
-    currentConfig = config; 
+	currentConfig = config;
 }
 
 export function getSDKConfig(): SDKConfig {
-    return currentConfig; 
+	if (!currentConfig) {
+		throw new Error(
+			'[Walrus SDK] SDK is not configured. Please call `configureSDK({ ... })` before using any functions.',
+		);
+	}
+	return currentConfig;
 }
+
+export const PROTOCOL_TREASURY_ADDRESS='';

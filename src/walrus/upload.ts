@@ -1,30 +1,53 @@
 import { getStorageQuote, hashFile } from "../utils/encoding";
 import { createAndSendWormholeMsg } from "../bridge/wormhole";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Connection } from "@solana/web3.js";
 import { UploadOptions } from "../types";
 import { getWalrusClient } from "./client";
+import { getSDKConfig } from "../config";
+import { transferProtocolFee } from "../bridge/treasury";
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
-    const { file, wallet, suiReceiverAddress } = options; 
+	// 🔐 Enforce that SDK is configured
+	getSDKConfig(); // Will throw an error if not configured
 
-    // Get File Size 
-    const fileSize = file.size; 
-    const fileHash = await hashFile(file); 
+	const {
+		file,
+		wallet,
+		suiReceiverAddress,
+		epochs,
+		deletable,
+		connection = new Connection('https://api.devnet.solana.com'), // fallback
+	} = options;
 
-    // Get Price Estimate 
-    const quote = await getStorageQuote(fileSize); 
+	// 1. Get file size and hash
+	const fileSize = file.size;
+	const fileHash = await hashFile(file);
 
-    // Apply 1% Protocol Fee 
-    const totalSOL = quote * 1.01; 
+	// 2. Get storage quote
+	const quote = await getStorageQuote({
+		bytes: file.size,
+		epochs,
+		deletable,
+	});
 
-    // Send Wormhole Message 
-    const blobId = await createAndSendWormholeMsg({
-        fileHash, 
-        fileSize, 
-        amountSOL: totalSOL, 
-        solanaPubkey: wallet.publicKey, 
-        suiReceiver: suiReceiverAddress, 
-    }); 
+	// 3. Apply 1% protocol fee
+	const totalSOL = quote.totalCost * 1.01;
 
-    return blobId;
+	// 4. Transfer fee to protocol treasury, get remaining SOL
+	const { remainingSOL, feePaid } = await transferProtocolFee({
+		connection,
+		payer: wallet,
+		amountSOL: totalSOL,
+	});
+
+	// 5. Send Wormhole message with post-fee amount
+	const blobId = await createAndSendWormholeMsg({
+		fileHash,
+		fileSize,
+		amountSOL: remainingSOL,
+		solanaPubkey: wallet.publicKey,
+		suiReceiver: suiReceiverAddress,
+	});
+
+	return blobId;
 }
