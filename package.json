@@ -10,9 +10,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@mysten/sui": "^1.29.1",
     "@mysten/walrus": "^0.0.19",
     "@solana/web3.js": "^1.98.1",
     "@wormhole-foundation/sdk": "^1.16.1",
+    "@wormhole-foundation/sdk-solana": "^1.16.1",
+    "@wormhole-foundation/sdk-sui": "^1.16.1",
     "axios": "^1.8.4"
   },
   "devDependencies": {

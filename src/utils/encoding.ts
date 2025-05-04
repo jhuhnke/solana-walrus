@@ -10,13 +10,10 @@ const SUI_TRANSACTION_COST = 0.01; // Fixed SUI gas cost (simulated)
 export async function getStorageQuote(options: StorageQuoteOptions): Promise<StorageQuoteBreakdown> {
 	const { bytes, epochs = 3, deletable = true } = options;
 
-	// Simulate encoded blob size
 	const encodedSize = (bytes * ERASURE_CODING_MULTIPLIER) + METADATA_OVERHEAD;
 
-	// Simulated WAL cost based on size and epoch duration
 	const walCost = encodedSize * epochs * WAL_COST_PER_BYTE_PER_EPOCH;
 
-	// Simulated SUI transaction cost (constant)
 	const suiCost = SUI_TRANSACTION_COST;
 
 	const totalCost = walCost + suiCost;
