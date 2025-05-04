@@ -8,62 +8,73 @@ import { transferProtocolFee } from "../bridge/treasury";
 import { isAstrosGasFreeSwapAvailable } from "../swap/astrosUtils";
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
-  // 0. Ensure SDK is configured
-  getSDKConfig();
+	const {
+		file,
+		wallet,
+		suiReceiverAddress,
+		epochs,
+		deletable,
+		connection,
+	} = options;
 
-  const {
-    file,
-    wallet,
-    suiReceiverAddress,
-    epochs,
-    deletable,
-    connection = new Connection("https://api.testnet.solana.com"),
-  } = options;
+	// 0. Load SDK config
+	const config = getSDKConfig();
 
-  // 1. Calculate file hash and size
-  const fileSize = file.size;
-  const fileHash = await hashFile(file);
+	// 1. Use correct Solana RPC
+	const solanaConnection =
+		connection || new Connection(config.solanaRpcUrl || getDefaultSolanaRpc(config.network));
 
-  // 2. Get storage quote
-  const quote = await getStorageQuote({
-    bytes: fileSize,
-    epochs,
-    deletable,
-  });
+	// 2. Calculate file hash and size
+	const fileSize = file.size;
+	const fileHash = await hashFile(file);
 
-  const estimatedSOL = quote.totalCost;
+	// 3. Get quote
+	const quote = await getStorageQuote({
+		bytes: fileSize,
+		epochs,
+		deletable,
+	});
+	const estimatedSOL = quote.totalCost;
 
-  // 3. Check if Astros will sponsor the swap
-  const wsSolCoinType = "0x2::sui::SUI"; // Replace with actual WSOL coin type if different
-  const walCoinType = "0x...::walrus::WAL"; // Replace with actual WAL token coin type
-  const suiReceiver = suiReceiverAddress || "auto-derived-sui-address"; // TODO: derive from Solana wallet
+	// 4. Pull token addresses for current network
+	const { wsSol, wal } = config.tokenAddresses[config.network];
 
-  const gasFree = await isAstrosGasFreeSwapAvailable(
-    wsSolCoinType,
-    walCoinType,
-    (estimatedSOL * 1e9).toFixed(0),
-    suiReceiver
-  );
+	const suiReceiver = suiReceiverAddress || "auto-derived-sui-address"; // TODO: derive from Solana pubkey
 
-  // 4. Adjust protocol fee
-  const protocolFeePercent = gasFree ? 0.01 : 0.02;
-  const totalSOL = estimatedSOL * (1 + protocolFeePercent);
+	// 5. Check Astros gas sponsorship
+	const gasFree = await isAstrosGasFreeSwapAvailable(
+		wsSol,
+		wal,
+		(estimatedSOL * 1e9).toFixed(0),
+		suiReceiver
+	);
 
-  // 5. Transfer protocol fee and calculate remaining amount for Wormhole
-  const { remainingSOL, feePaid } = await transferProtocolFee({
-    connection,
-    payer: wallet,
-    amountSOL: totalSOL,
-  });
+	// 6. Adjust fee
+	const protocolFeePercent = gasFree ? 0.01 : 0.02;
+	const totalSOL = estimatedSOL * (1 + protocolFeePercent);
 
-  // 6. Send Wormhole message to move SOL → Sui
-  const blobId = await createAndSendWormholeMsg({
-    fileHash,
-    fileSize,
-    amountSOL: remainingSOL,
-    solanaPubkey: wallet.publicKey as PublicKey,
-    suiReceiver,
-  });
+	// 7. Pay treasury fee
+	const { remainingSOL } = await transferProtocolFee({
+		connection: solanaConnection,
+		payer: wallet,
+		amountSOL: totalSOL,
+	});
 
-  return blobId;
+	// 8. Send Wormhole message
+	const blobId = await createAndSendWormholeMsg({
+		fileHash,
+		fileSize,
+		amountSOL: remainingSOL,
+		solanaPubkey: wallet.publicKey as PublicKey,
+		suiReceiver,
+	});
+
+	return blobId;
+}
+
+// Helper for default RPC URLs
+function getDefaultSolanaRpc(network: 'mainnet' | 'testnet'): string {
+	return network === 'mainnet'
+		? 'https://api.mainnet-beta.solana.com'
+		: 'https://api.testnet.solana.com';
 }

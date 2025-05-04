@@ -2,9 +2,18 @@ import { WalrusClient } from '@mysten/walrus';
 
 type WalrusClientOptions = ConstructorParameters<typeof WalrusClient>[0];
 
+export type Network = 'testnet' | 'mainnet';
+
+export interface TokenAddresses {
+	wsSol: string; 
+	wal: string;   
+}
+
 export interface SDKConfig {
-	network: 'testnet' | 'mainnet';
+	network: Network;
 	suiUrl?: string;
+	solanaRpcUrl?: string;
+	tokenAddresses: Record<Network, TokenAddresses>;
 	walrusOptions?: Partial<WalrusClientOptions>;
 }
 
@@ -23,4 +32,12 @@ export function getSDKConfig(): SDKConfig {
 	return currentConfig;
 }
 
-export const PROTOCOL_TREASURY_ADDRESS = '';
+// 🔐 Static treasury address (SOL)
+export const PROTOCOL_TREASURY_ADDRESS = 'GBMTWhsnLAPxLXcwDoFu45VrzBYuCyGU5eLSavksR1Qc';
+
+// 🔁 Optional: provide a helper for default RPC fallback
+export function getDefaultSolanaRpc(network: Network): string {
+	return network === 'mainnet'
+		? 'https://api.mainnet-beta.solana.com'
+		: 'https://api.testnet.solana.com';
+}
