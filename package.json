@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -23,5 +26,8 @@
     "jest": "^29.7.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  }, 
+  "overrides": {
+    "@mysten/sui": "^1.29.1"
   }
 }

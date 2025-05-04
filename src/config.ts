@@ -1,11 +1,12 @@
-import { WalrusClientOptions } from '@mysten/walrus'; 
+import { WalrusClient } from '@mysten/walrus';
+
+type WalrusClientOptions = ConstructorParameters<typeof WalrusClient>[0];
 
 export interface SDKConfig {
-    network: 'testnet' | 'mainnet' | "devnet" | "localnet"; 
-    suiUrl?: string; 
-    walrusOptions?: Partial<WalrusClientOptions>; 
+	network: 'testnet' | 'mainnet';
+	suiUrl?: string;
+	walrusOptions?: Partial<WalrusClientOptions>;
 }
-
 
 let currentConfig: SDKConfig | null = null;
 
@@ -22,4 +23,4 @@ export function getSDKConfig(): SDKConfig {
 	return currentConfig;
 }
 
-export const PROTOCOL_TREASURY_ADDRESS='';
+export const PROTOCOL_TREASURY_ADDRESS = '';
