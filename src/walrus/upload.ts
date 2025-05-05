@@ -2,46 +2,47 @@ import { getStorageQuote, hashFile } from "../utils/encoding";
 import { createAndSendWormholeMsg } from "../bridge/wormhole";
 import { PublicKey, Connection } from "@solana/web3.js";
 import { UploadOptions } from "../types";
-import { getWalrusClient } from "./client";
 import { getSDKConfig } from "../config";
 import { transferProtocolFee } from "../bridge/treasury";
 import { isAstrosGasFreeSwapAvailable } from "../swap/astrosUtils";
+import { finalizeUploadOnSui } from "./uploadOnSui";
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
 	const {
 		file,
 		wallet,
 		suiReceiverAddress,
+		suiKeypair,
 		epochs,
 		deletable,
 		connection,
 	} = options;
 
-	// 0. Load SDK config
 	const config = getSDKConfig();
+
+	// ✅ 0. Enforce suiKeypair is provided
+	if (!suiKeypair) {
+		throw new Error("[Walrus SDK] `suiKeypair` is required to finalize upload on Sui.");
+	}
 
 	// 1. Use correct Solana RPC
 	const solanaConnection =
 		connection || new Connection(config.solanaRpcUrl || getDefaultSolanaRpc(config.network));
 
-	// 2. Calculate file hash and size
+	// 2. Hash and size
 	const fileSize = file.size;
 	const fileHash = await hashFile(file);
+	const fileBytes = new Uint8Array(await file.arrayBuffer());
 
-	// 3. Get quote
-	const quote = await getStorageQuote({
-		bytes: fileSize,
-		epochs,
-		deletable,
-	});
+	// 3. Get Walrus storage quote
+	const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
 	const estimatedSOL = quote.totalCost;
 
-	// 4. Pull token addresses for current network
+	// 4. Token info
 	const { wsSol, wal } = config.tokenAddresses[config.network];
+	const suiReceiver = suiReceiverAddress || suiKeypair.getPublicKey().toSuiAddress();
 
-	const suiReceiver = suiReceiverAddress || "auto-derived-sui-address"; // TODO: derive from Solana pubkey
-
-	// 5. Check Astros gas sponsorship
+	// 5. Check if Astros will sponsor the swap
 	const gasFree = await isAstrosGasFreeSwapAvailable(
 		wsSol,
 		wal,
@@ -49,11 +50,11 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		suiReceiver
 	);
 
-	// 6. Adjust fee
+	// 6. Apply protocol fee
 	const protocolFeePercent = gasFree ? 0.01 : 0.02;
 	const totalSOL = estimatedSOL * (1 + protocolFeePercent);
 
-	// 7. Pay treasury fee
+	// 7. Transfer protocol fee
 	const { remainingSOL } = await transferProtocolFee({
 		connection: solanaConnection,
 		payer: wallet,
@@ -61,7 +62,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 	});
 
 	// 8. Send Wormhole message
-	const blobId = await createAndSendWormholeMsg({
+	await createAndSendWormholeMsg({
 		fileHash,
 		fileSize,
 		amountSOL: remainingSOL,
@@ -69,7 +70,15 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		suiReceiver,
 	});
 
-	return blobId;
+	// 9. Finalize upload on Sui
+	const result = await finalizeUploadOnSui({
+		suiKeypair,
+		fileBytes,
+		epochs,
+		deletable,
+	});
+
+	return result.blobId;
 }
 
 // Helper for default RPC URLs

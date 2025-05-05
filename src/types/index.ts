@@ -8,7 +8,7 @@ export interface UploadOptions {
     signTransaction: (tx: any) => Promise<any>;
   };
   suiReceiverAddress?: string;
-  suiWallet?: SuiKeypair;
+  suiKeypair?: SuiKeypair;
   epochs?: number;
   deletable?: boolean;
   connection?: Connection;
