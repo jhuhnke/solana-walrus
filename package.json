@@ -1,17 +1,42 @@
 {
   "name": "solana-walrus",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "TypeScript SDK for uploading, downloading, and managing Walrus blobs using a Solana wallet",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
-    "test": "jest"
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "walrus",
+    "solana",
+    "sui",
+    "wormhole",
+    "sdk",
+    "storage",
+    "upload",
+    "web3"
+  ],
+  "author": "Your Name or Org",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/solana-walrus"
+  },
   "dependencies": {
     "@mysten/sui": "^1.29.1",
     "@mysten/walrus": "^0.0.19",
