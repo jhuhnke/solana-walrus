@@ -31,7 +31,7 @@
     "upload",
     "web3"
   ],
-  "author": "Your Name or Org",
+  "author": "@web3_analyst",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -46,11 +46,13 @@
     "@wormhole-foundation/sdk": "^1.16.1",
     "@wormhole-foundation/sdk-solana": "^1.16.1",
     "@wormhole-foundation/sdk-sui": "^1.16.1",
-    "axios": "^1.8.4"
+    "axios": "^1.8.4",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "jest": "^29.7.0",
+    "ts-jest": "^29.3.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   },

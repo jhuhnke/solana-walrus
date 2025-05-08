@@ -1,11 +1,11 @@
-import { PublicKey, Connection } from "@solana/web3.js";
+import { PublicKey, Connection, Transaction, Keypair } from "@solana/web3.js";
 import type { Ed25519Keypair as SuiKeypair } from "@mysten/sui/keypairs/ed25519";
 
 export interface UploadOptions {
   file: File;
-  wallet: {
-    publicKey: PublicKey;
-    signTransaction: (tx: any) => Promise<any>;
+  wallet: Keypair | {
+      publicKey: PublicKey;
+      signTransaction: (tx: Transaction) => Promise<Transaction>;
   };
   suiReceiverAddress?: string;
   suiKeypair?: SuiKeypair;

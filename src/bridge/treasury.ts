@@ -3,7 +3,8 @@ import {
     PublicKey, 
     Transaction, 
     SystemProgram, 
-    sendAndConfirmTransaction
+    sendAndConfirmTransaction, 
+    Keypair, 
 } from '@solana/web3.js'; 
 import { PROTOCOL_TREASURY_ADDRESS } from '../config'; 
 
@@ -13,10 +14,7 @@ export async function transferProtocolFee({
     amountSOL, 
 }: {
     connection: Connection; 
-    payer: {
-        publicKey: PublicKey; 
-        signTransaction: (tx: Transaction) => Promise<Transaction>
-    }; 
+    payer: Keypair; 
     amountSOL: number; 
 }): Promise<{
     remainingSOL: number; 
@@ -24,23 +22,30 @@ export async function transferProtocolFee({
 }> {
     const treasuryPubkey = new PublicKey(PROTOCOL_TREASURY_ADDRESS); 
     const feePercent = 0.01; 
-    const feeAmount = amountSOL & feePercent; 
+    const feeAmount = amountSOL * feePercent; 
 
-    const lamports = feeAmount * 1e9; 
+    const lamports = Math.round(feeAmount * 1e9); 
 
-    const transaction = new Transaction().add(
+    // ✅ Add recent blockhash
+    const recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+
+    const transaction = new Transaction({
+        recentBlockhash,
+        feePayer: payer.publicKey,
+    }).add(
         SystemProgram.transfer({
             fromPubkey: payer.publicKey, 
             toPubkey: treasuryPubkey, 
-            lamports: Math.round(lamports), 
-        }), 
+            lamports,
+        })
     ); 
 
-    const signed = await payer.signTransaction(transaction); 
-    await sendAndConfirmTransaction(connection, signed, []); 
+    // ✅ Sign and send transaction
+    transaction.partialSign(payer);
+    await sendAndConfirmTransaction(connection, transaction, [payer]);
 
     return {
         remainingSOL: amountSOL - feeAmount, 
         feePaid: feeAmount, 
-    }; 
+    };
 }

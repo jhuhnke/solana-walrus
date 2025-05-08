@@ -16,8 +16,8 @@ export class WalrusSolanaSDK {
 	 * Returns blobId and blobObjectId.
 	 */
 	async upload(options: UploadOptions): Promise<string> {
-        return uploadFile(options);
-    }
+		return uploadFile(options); 
+	}
 
 	/**
 	 * Delete a blob from Walrus using its object ID.
