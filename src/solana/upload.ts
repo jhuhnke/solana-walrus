@@ -65,8 +65,12 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		fileHash,
 		fileSize,
 		amountSOL: remainingSOL,
-		solanaPubkey: wallet.publicKey as PublicKey,
+		wallet: {
+			publicKey: wallet.publicKey,
+			signTransaction: wallet.signTransaction,
+		},
 		suiReceiver,
+		suiKeypair,
 	});
 
 	// 9. Upload file blob on Sui

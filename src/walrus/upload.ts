@@ -1,6 +1,6 @@
 import { SuiClient } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { getWalrusClient } from "./client";
+import { getWalrusClient } from "../walrus/client";
 import { swapWSOLtoWAL } from "../swap/dexRouter";
 import { getSDKConfig } from "../config";
 
@@ -15,23 +15,20 @@ export interface FinalizeUploadOptions {
 	fileBytes: Uint8Array;
 	deletable?: boolean;
 	epochs?: number;
-	walAmount?: number; // optional WSOL to WAL swap amount
+	walAmount?: number;
 }
 
+/**
+ * Finalize the upload of a Walrus blob on Sui.
+ */
 export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promise<FinalizeUploadResult> {
-	const {
-		suiKeypair,
-		fileBytes,
-		deletable = true,
-		epochs = 3,
-		walAmount = 0.1,
-	} = options;
-
+	const { suiKeypair, fileBytes, deletable = true, epochs = 3, walAmount = 0.1 } = options;
 	const config = getSDKConfig();
-	const suiClient: SuiClient = new SuiClient({ url: config.suiUrl! });
+	const suiClient = new SuiClient({ url: config.suiUrl! });
 	const sender = suiKeypair.getPublicKey().toSuiAddress();
+	const walrusClient = getWalrusClient();
 
-	// 1. Swap WSOL → WAL
+	// ✅ 1. Swap WSOL → WAL
 	await swapWSOLtoWAL({
 		signer: suiKeypair,
 		wsSolCoinType: config.tokenAddresses[config.network].wsSol,
@@ -39,13 +36,10 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 		amount: (walAmount * 1e9).toFixed(0),
 	});
 
-	// 2. Get Walrus client (still used for encode logic)
-	const walrusClient = getWalrusClient();
-
-	// 3. Encode the file (generates blobId, rootHash, metadata, slivers)
+	// ✅ 2. Encode the file (generates blobId, rootHash, metadata, slivers)
 	const encoded = await walrusClient.encodeBlob(fileBytes);
 
-	// 4. Build and submit registerBlob transaction manually
+	// ✅ 3. Register the blob
 	const registerTx = await walrusClient.registerBlobTransaction({
 		blobId: encoded.blobId,
 		rootHash: encoded.rootHash,
@@ -56,27 +50,22 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 	});
 
 	const registerResult = await suiClient.signAndExecuteTransaction({
-        signer: suiKeypair,
-        transaction: registerTx,
-        options: {
-            showEffects: true,
-            showObjectChanges: true,
-        },
-    });
-    
-    const blobType = await walrusClient.getBlobType();
-    
-    const blobObject = registerResult.objectChanges?.find(
-        obj => obj.type === "created" && "objectType" in obj && obj.objectType === blobType
-    );
-    
-    if (!blobObject || blobObject.type !== "created") {
-        throw new Error("Blob object not found");
-    }
-    
-    const blobObjectId = blobObject.objectId;
+		signer: suiKeypair,
+		transaction: registerTx,
+		options: { showEffects: true, showObjectChanges: true },
+	});
 
-	// 5. Upload data to Walrus nodes
+	// ✅ 4. Find the blob object
+	const blobType = await walrusClient.getBlobType();
+	const blobObject = registerResult.objectChanges?.find(
+		(obj) => obj.type === "created" && "objectType" in obj && obj.objectType === blobType
+	) as { objectId: string } | undefined;
+
+	if (!blobObject) {
+		throw new Error("Blob object not found in transaction result");
+	}
+
+	// ✅ 5. Upload encoded blob data to nodes
 	const confirmations = await walrusClient.writeEncodedBlobToNodes({
 		blobId: encoded.blobId,
 		metadata: encoded.metadata,
@@ -85,7 +74,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 		objectId: blobObject.objectId,
 	});
 
-	// 6. Certify blob
+	// ✅ 6. Certify the blob
 	const certifyTx = await walrusClient.certifyBlobTransaction({
 		blobId: encoded.blobId,
 		blobObjectId: blobObject.objectId,
@@ -100,7 +89,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 	});
 
 	if (certifyResult.effects?.status.status !== "success") {
-		throw new Error("Certify blob transaction failed.");
+		throw new Error("Certify blob transaction failed");
 	}
 
 	return {

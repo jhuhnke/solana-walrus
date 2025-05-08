@@ -34,13 +34,13 @@ const sdk = new WalrusSolanaSDK({
 	suiUrl: "https://fullnode.testnet.sui.io", // optional
 	solanaRpcUrl: "https://api.testnet.solana.com", // optional
 	tokenAddresses: {
-		testnet: {
-			wsSol: "0x2::sui::SUI",
-			wal: "0xwalrus::WAL",
-		},
 		mainnet: {
-			wsSol: "...",
-			wal: "...",
+			wsSol: "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
+			wal: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
+		},
+		testnet: {
+			wsSol: "0xbc03aaab4c11eb84df8bf39fdc714fa5d5b65b16eb7d155e22c74a68c8d4e17f::coin::COIN",
+			wal: "0x8190b041122eb492bf63cb464476bd68c6b7e570a4079645a8b28732b6197a82::wal::WAL",
 		},
 	},
 });

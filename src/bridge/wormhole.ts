@@ -1,6 +1,6 @@
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import solana from '@wormhole-foundation/sdk/solana';
-import sui    from '@wormhole-foundation/sdk/sui';
+import sui from '@wormhole-foundation/sdk/sui';
 import {
   wormhole,
   Wormhole,
@@ -8,52 +8,67 @@ import {
   amount,
   isTokenId,
   ChainAddress,
-  Signer
+  Signer,
 } from '@wormhole-foundation/sdk';
 
 import { getSolanaSigner } from '../wallets/solana';
-import { getSuiSigner    } from '../wallets/sui';
+import { getSuiSigner } from '../wallets/sui';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { getSDKConfig, getDefaultSolanaRpc } from '../config';
+
+// Convert 'mainnet' ↔ 'Mainnet', 'testnet' ↔ 'Testnet' for Wormhole SDK
+function toWormholeNetwork(network: "mainnet" | "testnet"): "Mainnet" | "Testnet" {
+	return network === "mainnet" ? "Mainnet" : "Testnet";
+}
 
 /**
  * Creates and sends a Wormhole message for a file upload,
- * then returns the resulting "blob ID" once redeemed on Sui.
+ * bridging SOL to Sui and preparing the transfer.
  */
 export async function createAndSendWormholeMsg(params: {
   fileHash: string;
   fileSize: number;
   amountSOL: number;
-  solanaPubkey: PublicKey;
+  wallet: {
+    publicKey: PublicKey;
+    signTransaction: (tx: Transaction) => Promise<Transaction>;
+  };
   suiReceiver?: string;
+  suiKeypair: Ed25519Keypair;
 }): Promise<string> {
-  const { fileHash, fileSize, amountSOL, solanaPubkey, suiReceiver } = params;
+  const { fileHash, fileSize, amountSOL, wallet, suiReceiver, suiKeypair } = params;
 
-  // 1) Init Wormhole + adapters
-  const wh = await wormhole('Testnet', [solana, sui]);
-  const solChain = wh.getChain('Solana');
-  const suiChain = wh.getChain('Sui');
+  // 1. Get network and config
+  const config = getSDKConfig();
+  const { network, solanaRpcUrl } = config;
+  const rpc = solanaRpcUrl || getDefaultSolanaRpc(network);
 
-  // 2) Build Solana signer/address
-  const solConnection = new Connection('https://api.testnet.solana.com');
-  const solKeypair    = Keypair.generate(); // or import from secret
-  const { addr: solAddr, signer: solSigner } =
-    getSolanaSigner(solChain, solKeypair, solConnection);
+  // 2. Init Wormhole
+  const wh = await wormhole(toWormholeNetwork(network), [solana, sui]);
+  const solChain = wh.getChain("Solana");
+  const suiChain = wh.getChain("Sui");
 
-  // 3) Build Sui signer/address
-  const suiKeypair = Ed25519Keypair.generate(); // or import from secret
+  // 3. Solana signer (now using full wallet)
+  const connection = new Connection(rpc);
+  const { addr: solAddr, signer: solSigner } = getSolanaSigner(
+    solChain,
+    wallet,
+    connection
+  );
+
+  // 4. Sui signer
   const { addr: suiAddr, signer: suiSigner } = getSuiSigner(suiChain, suiKeypair);
 
-  // 4) Prepare the native SOL token bridge address
+  // 5. Prepare token bridge
   const tokenId: TokenId = Wormhole.tokenId('Solana', 'native');
   const solMint = await (solana as any).getOriginalAsset(tokenId);
-
-  // 5) Normalize the amount
   const decimals = isTokenId(tokenId)
     ? Number(await wh.getDecimals(tokenId.chain, tokenId.address))
     : solChain.config.nativeTokenDecimals;
+
   const transferAmount = amount.units(amount.parse(amountSOL.toString(), decimals));
 
-  // 6) Kick off the manual tokenTransfer
+  // 6. Initiate transfer
   const xfer = await wh.tokenTransfer(
     solMint,
     transferAmount,
@@ -62,20 +77,20 @@ export async function createAndSendWormholeMsg(params: {
     false
   );
 
-  // 7) Submit on Solana
   const [solTx, bridgeTx] = await xfer.initiateTransfer(solSigner as unknown as Signer);
 
-  // 8) Wait for the VAA
+  // 7. Wait for VAA
   await xfer.fetchAttestation(5 * 60_000);
 
-  // 9) Redeem on Sui
+  // 8. Complete on Sui
   const suiTxs = await xfer.completeTransfer(suiSigner);
 
-  // 10) The “blob ID” is encoded in the final transaction logs on Sui.
-  //     You’ll need to fetch the event or VAA payload from `suiTxs`.
-  //     For simplicity, let’s assume the bridge returns it as the first log:
-  if (Array.isArray(suiTxs)) {
-    return suiTxs[0];
-  }
+  // 9. Simulated blob ID return (you’ll want to parse actual logs later)
+  if (Array.isArray(suiTxs)) return suiTxs[0];
   return suiTxs;
+}
+
+// Utility to match Wormhole's network string casing
+function capitalize(net: string): string {
+  return net.charAt(0).toUpperCase() + net.slice(1).toLowerCase();
 }

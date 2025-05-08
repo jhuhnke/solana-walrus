@@ -1,34 +1,26 @@
-import { Keypair, Transaction, Connection, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 
-export type SolanaAddress = {
-  chain: any;     
-  address: string;    
-};
-
-
-export type SolanaSigner = {
-  sign(tx: Transaction): Promise<string>; 
-};
+export interface SolanaWallet {
+  publicKey: PublicKey;
+  signTransaction: (tx: any) => Promise<any>;
+}
 
 export function getSolanaSigner(
   chain: any,
-  wallet: Keypair,
+  wallet: SolanaWallet,
   connection: Connection
-): { addr: SolanaAddress; signer: SolanaSigner } {
-  const addr: SolanaAddress = {
-    chain:   "Solana",
-    address: wallet.publicKey.toBase58(),
+) {
+  const signer = {
+    chain: () => "Solana",
+    address: () => wallet.publicKey.toBase58(),
+    sign: async (txs: Transaction[]) => {
+      const signed = await Promise.all(txs.map(wallet.signTransaction));
+      return signed;
+    },
   };
 
-  const signer: SolanaSigner = {
-    async sign(tx: Transaction) {
-      const { blockhash } = await connection.getLatestBlockhash();
-      tx.recentBlockhash = blockhash;
-      tx.feePayer        = wallet.publicKey;
-      tx.sign(wallet);
-      return sendAndConfirmTransaction(connection, tx, [wallet]);
-    }
+  return {
+    addr: wallet.publicKey.toBase58(),
+    signer,
   };
-
-  return { addr, signer };
 }
