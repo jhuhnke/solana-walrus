@@ -23,6 +23,50 @@ Built using the [Mysten Labs Walrus SDK](https://sdk.mystenlabs.com/walrus) and 
 npm install solana-walrus
 ```
 
+## Setting Up a SUI Wallet for Walrus SDK
+
+To interact with the Walrus SDK, you'll need a SUI wallet with some testnet SUI for gas. Here’s a quick setup guide using Phantom Wallet:
+
+### **1. Importing an Existing SUI Wallet (Recommended)**
+If you already have a SUI mnemonic, you can import it directly into Phantom:
+
+1. **Install Phantom Wallet**  
+   - Download and install the Phantom Wallet extension from [Phantom’s official site](https://phantom.app/).
+   - Make sure you’re using the latest version with SUI support.
+
+2. **Import SUI Mnemonic**  
+   - Open Phantom.
+   - Go to **Settings** → **Wallets** → **Import Wallet**.
+   - Select **SUI** as the network.
+   - Enter your existing SUI mnemonic.
+   - Set a strong password and finish the setup.
+
+---
+
+### **2. Getting SUI for Gas**
+Once your wallet is set up, you’ll need some testnet SUI to cover transaction fees:
+
+1. **Switch to SUI Testnet**  
+   - Open the Phantom Wallet.
+   - Click on the network selector (top left corner) and select **SUI Testnet**.
+
+2. **Request Testnet SUI**  
+   - Visit the [SUI Testnet Faucet](https://discord.gg/sui) or use a public faucet like [SUI Foundation's Testnet Faucet](https://faucet.sui.io).  
+   - Paste your SUI address and request some testnet SUI. You should see the funds arrive in a few seconds.
+
+---
+
+### **3. Checking Your Balance**
+To ensure your wallet is ready for transactions:
+
+- Check your SUI balance in the Phantom Wallet.
+- Make sure you have enough gas to cover your first few transactions.
+
+---
+
+### **Next Steps**
+With your SUI wallet ready, you can move on to integrating it with the Walrus SDK for seamless Solana-to-SUI interactions.
+
 ## Usage 
 
 **1. Configure the SDK**
@@ -83,3 +127,8 @@ Note: Only works if uploaded with ```deletable: true```
 const attrs = await sdk.getAttributes(blobId);
 console.log(attrs); // { contentType: "text/plain", ... }
 ```
+
+**LEARNINGS - To Integrate**
+1. SUI Wallet cannot be fresh key - must be imported as mnemonic
+2. Wormhole transfer requires that the sui wallet have a little gas. 
+3. Solana must be on devnet 
