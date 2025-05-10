@@ -10,7 +10,7 @@
       "resolveJsonModule": true, 
       "skipLibCheck": true,
     },
-    "include": ["src/**/*"], 
+    "include": ["src/**/*", "trial.ts"], 
     "exclude": ["node_modules", "dist"]
   }
   

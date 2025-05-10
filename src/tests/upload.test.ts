@@ -1,3 +1,5 @@
+process.env.SOLANA_RPC_HOST = "https://methodical-empty-forest.solana-testnet.quiknode.pro/357c49f3e52f3347f89f3408e368aaaac595c8b9/";
+
 import { WalrusSolanaSDK } from "../sdk/index";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Keypair, Connection } from "@solana/web3.js";
@@ -11,17 +13,18 @@ beforeAll(() => {
     configureSDK({
         network: "testnet",
         suiUrl: "https://fullnode.testnet.sui.io",
+        solanaRpcUrl: "https://methodical-empty-forest.solana-testnet.quiknode.pro/357c49f3e52f3347f89f3408e368aaaac595c8b9/",
         tokenAddresses: {
-            mainnet: {
-                wsSol: "So11111111111111111111111111111111111111112",//"0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
-                wal: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
-            },
-            testnet: {
-                wsSol: "So11111111111111111111111111111111111111112",//"0xbc03aaab4c11eb84df8bf39fdc714fa5d5b65b16eb7d155e22c74a68c8d4e17f::coin::COIN",
-                wal: "0x8190b041122eb492bf63cb464476bd68c6b7e570a4079645a8b28732b6197a82::wal::WAL",
-            },
+          mainnet: {
+            wsSol: "So11111111111111111111111111111111111111112",
+            wal:   "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
+          },
+          testnet: {
+            wsSol: "So11111111111111111111111111111111111111112",
+            wal:   "0x8190b041122eb492bf63cb464476bd68c6b7e570a4079645a8b28732b6197a82::wal::WAL",
+          },
         },
-    });
+      });
     console.log("[✅] SDK Configured.");
 });
 
