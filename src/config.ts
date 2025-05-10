@@ -39,5 +39,5 @@ export const PROTOCOL_TREASURY_ADDRESS = 'GBMTWhsnLAPxLXcwDoFu45VrzBYuCyGU5eLSav
 export function getDefaultSolanaRpc(network: Network): string {
 	return network === 'mainnet'
 		? 'https://api.mainnet-beta.solana.com'
-		: 'https://api.testnet.solana.com';
+		: 'https://api.devnet.solana.com';
 }

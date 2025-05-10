@@ -13,6 +13,8 @@ import { getSolanaSigner } from "../wallets/solana";
 import { getSuiSigner } from "../wallets/sui";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { getSDKConfig, getDefaultSolanaRpc } from "../config";
+import { Keypair } from '@solana/web3.js';
+import fs from 'fs';
 
 /** Maps your network key to the SDK enum. */
 function toWormholeNetwork(network: "mainnet" | "testnet"): "Mainnet" | "Testnet" {
@@ -52,16 +54,18 @@ export async function createAndSendWormholeMsg(params: {
 
   // 3. Prepare Solana signer using the same RPC
   const connection = new Connection(rpc, "confirmed");
-  const { addr: solAddr, signer: solSigner } = getSolanaSigner(
-    wh.getChain("Solana"),
-    wallet,
-    connection
+  const solanaKeypair = Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(fs.readFileSync('./test-wallet.json', 'utf8')))
   );
-  console.log(`[🔑] Solana address: ${solAddr}`);
+  const { addr: solAddr, signer: solSigner } = await getSolanaSigner(
+      wh.getChain("Solana"),
+      solanaKeypair
+  );
 
   // 4. Prepare Sui signer
   const { signer: suiSigner } = getSuiSigner(wh.getChain("Sui"), suiKeypair);
-  console.log(`[🔑] Sui address: ${suiReceiver || suiKeypair.getPublicKey().toSuiAddress()}`);
+  const suiAddr = suiReceiver || suiKeypair.getPublicKey().toSuiAddress();
+  console.log(`[🔑] Sui address: ${suiAddr}`);
 
   // 5. Determine WSOL TokenId & decimals
   const wsSol = config.tokenAddresses[config.network].wsSol;
@@ -87,28 +91,25 @@ export async function createAndSendWormholeMsg(params: {
     tokenId,
     transferAmount,
     Wormhole.chainAddress("Solana", solAddr),
-    Wormhole.chainAddress(
-      "Sui",
-      suiReceiver || suiKeypair.getPublicKey().toSuiAddress()
-    ),
+    Wormhole.chainAddress("Sui", suiAddr),
     false
   );
 
-  // sign + send through the SDK (now using our rpc under the hood)
+  // 8. Sign and send the Solana transfer
   console.log("[🚀] Initiating token transfer...");
-  const [solTx, bridgeTx] = await xfer.initiateTransfer(solSigner as unknown as Signer);
+  const [solTx, bridgeTx] = await xfer.initiateTransfer(solSigner);
   console.log(`[🚀] Solana TX: ${solTx}; Bridge TX: ${bridgeTx}`);
 
-  // 8. Wait for VAA
+  // 9. Wait for VAA (attestation)
   console.log("[⏳] Waiting for VAA...");
   await xfer.fetchAttestation(5 * 60_000);
   console.log("[✅] VAA received.");
 
-  // 9. Complete transfer on Sui
+  // 10. Complete transfer on Sui
   console.log("[🔄] Completing transfer on Sui...");
   const suiTxs = await xfer.completeTransfer(suiSigner);
   console.log(`[✅] Transfer completed on Sui. TXs: ${suiTxs}`);
 
-  // 10. Return the first Sui TX as the blob ID
+  // 11. Return the first Sui TX as the blob ID
   return Array.isArray(suiTxs) ? suiTxs[0] : suiTxs;
 }

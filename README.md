@@ -76,7 +76,7 @@ import { WalrusSolanaSDK } from "solana-walrus";
 const sdk = new WalrusSolanaSDK({
 	network: "testnet",
 	suiUrl: "https://fullnode.testnet.sui.io", // optional
-	solanaRpcUrl: "https://api.testnet.solana.com", // optional
+	solanaRpcUrl: "https://api.devnet.solana.com", // optional
 	tokenAddresses: {
 		mainnet: {
 			wsSol: "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",

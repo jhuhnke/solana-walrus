@@ -48,7 +48,7 @@ describe("WalrusSolanaSDK", () => {
 
             // ✅ 3. Verify Solana balance
             console.log("[💰] Checking Solana balance...");
-            const connection = new Connection("https://api.testnet.solana.com");
+            const connection = new Connection("https://api.devnet.solana.com");
             const balance = await connection.getBalance(solanaWallet.publicKey);
             console.log(`[✅] Solana balance: ${(balance / 1e9).toFixed(4)} SOL`);
             if (balance < 1e9) {

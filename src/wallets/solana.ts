@@ -1,26 +1,18 @@
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
+import { Keypair } from "@solana/web3.js";
+import solana from "@wormhole-foundation/sdk/solana";
+import { Signer } from "@wormhole-foundation/sdk";
 
-export interface SolanaWallet {
-  publicKey: PublicKey;
-  signTransaction: (tx: any) => Promise<any>;
-}
-
-export function getSolanaSigner(
+/**
+ * Create a Solana signer compatible with the Wormhole SDK.
+ */
+export async function getSolanaSigner(
   chain: any,
-  wallet: SolanaWallet,
-  connection: Connection
-) {
-  const signer = {
-    chain: () => "Solana",
-    address: () => wallet.publicKey.toBase58(),
-    sign: async (txs: Transaction[]) => {
-      const signed = await Promise.all(txs.map(wallet.signTransaction));
-      return signed;
-    },
-  };
+  wallet: Keypair
+): Promise<{ addr: string, signer: Signer }> {
+  const address = wallet.publicKey.toBase58();
 
-  return {
-    addr: wallet.publicKey.toBase58(),
-    signer,
-  };
+  // Use the Wormhole SDK's getSigner to handle the transaction conversions correctly
+  const signer = await (await solana()).getSigner(await chain.getRpc(), address);
+  
+  return { addr: address, signer };
 }

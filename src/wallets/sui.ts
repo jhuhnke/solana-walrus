@@ -1,5 +1,5 @@
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { SuiClient } from '@mysten/sui/client';
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { SuiClient } from "@mysten/sui/client";
 
 type SuiAddress = {
   chain(): "Sui";
@@ -21,7 +21,14 @@ export function getSuiSigner(
     chain() { return "Sui"; },
     address() { return keypair.getPublicKey().toSuiAddress(); },
     async sign(tx: any) {
-      return provider.signAndExecuteTransaction({ transaction: tx, signer: keypair });
+      // Use the keypair's signing method directly
+      const txBytes = new TextEncoder().encode(tx);
+      const signature = keypair.sign(txBytes);
+
+      return provider.signAndExecuteTransaction({
+          transaction: tx,
+          signer: keypair,
+      });
     },
   };
 

@@ -45,7 +45,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 
   // 1. Use or generate Sui keypair
   const suiKeypair =
-    userProvidedSuiKeypair || getCachedOrCreateSuiKeypair(wallet.publicKey);
+    userProvidedSuiKeypair || getCachedOrCreateSuiKeypair(wallet.publicKey, "./import.json");
 
   // 2. Select Solana RPC
   const solanaConnection = connection || getCustomConnection();
