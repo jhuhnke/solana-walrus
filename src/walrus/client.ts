@@ -5,21 +5,28 @@ import { getSDKConfig } from '../config';
 let walrusClient: WalrusClient | null = null;
 
 export function getWalrusClient(): WalrusClient {
-	if (walrusClient) return walrusClient;
+    if (walrusClient) return walrusClient;
 
-	const config = getSDKConfig();
+    const config = getSDKConfig();
+    const suiUrl = config.suiUrl || getFullnodeUrl(config.network);
 
-	const suiClient = new SuiClient({
-		url: config.suiUrl || getFullnodeUrl(config.network),
-	});
+    // 🌐 Correct SuiClient initialization
+    console.log(`[🌐] Initializing Sui Client with URL: ${suiUrl}`);
+    
+    const suiClient = new SuiClient({ url: suiUrl });
 
-	const { suiRpcUrl, ...safeWalrusOptions } = config.walrusOptions || {};
+    console.log(`[✅] Sui Client Initialized:`, suiClient);
 
-	walrusClient = new WalrusClient({
-		network: config.network,
-		suiClient,
-		...safeWalrusOptions,
-	});
+    const { suiRpcUrl, ...safeWalrusOptions } = config.walrusOptions || {};
 
-	return walrusClient;
+    // 🚀 Initialize the WalrusClient
+    walrusClient = new WalrusClient({
+        network: config.network,
+        suiClient,
+        ...safeWalrusOptions,
+    });
+
+    console.log(`[✅] Walrus Client Initialized:`, walrusClient);
+
+    return walrusClient;
 }
