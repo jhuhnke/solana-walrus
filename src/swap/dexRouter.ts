@@ -18,7 +18,7 @@ export async function swapWSOLtoWAL({
 	walCoinType: string;
 	amount: string; // in base units, e.g. lamports (1e9 = 1 SOL)
 }): Promise<string> {
-	const suiClient = new SuiClient({ url: getFullnodeUrl('testnet') });
+	const suiClient = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 	const sender = signer.getPublicKey().toSuiAddress();
 
 	// 1. Call Astros Aggregator API to get swap route

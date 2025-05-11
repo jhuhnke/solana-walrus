@@ -1,42 +1,49 @@
+// src/sdk/index.ts
+
 import { configureSDK, SDKConfig } from "../config";
 import { uploadFile } from "../solana/upload";
 import { deleteFile } from "../solana/delete";
 import { getBlobData } from "../walrus/download";
 import { getBlobAttributesByObjectId } from "../walrus/attributes";
 import { UploadOptions } from "../types";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, Keypair } from "@solana/web3.js";
 
 export class WalrusSolanaSDK {
-	constructor(config: SDKConfig) {
-		configureSDK(config);
-	}
+    constructor(config: SDKConfig) {
+        configureSDK(config);
+    }
 
-	/**
-	 * Upload a file to Walrus via Solana → Sui.
-	 * Returns blobId and blobObjectId.
-	 */
-	async upload(options: UploadOptions): Promise<string> {
-		return uploadFile(options); 
-	}
+    /**
+     * Upload a file to Walrus via Solana → Sui.
+     * Returns blobId and blobObjectId.
+     */
+    async upload(options: UploadOptions): Promise<string> {
+        if (typeof options.file !== "string") {
+            throw new Error("[❌] Expected a file path string for the 'file' parameter.");
+        }
 
-	/**
-	 * Delete a blob from Walrus using its object ID.
-	 */
-	async delete(blobObjectId: string, wallet: { publicKey: PublicKey }): Promise<void> {
-		return deleteFile({ blobObjectId, wallet });
-	}
+        // ✅ Pass the full UploadOptions object
+        return await uploadFile(options);
+    }
 
-	/**
-	 * Download a file by blob ID.
-	 */
-	async download(blobId: string): Promise<Uint8Array> {
-		return getBlobData(blobId);
-	}
+    /**
+     * Delete a blob from Walrus using its object ID.
+     */
+    async delete(blobObjectId: string, wallet: { publicKey: PublicKey }): Promise<void> {
+        return deleteFile({ blobObjectId, wallet });
+    }
 
-	/**
-	 * Read on-chain blob attributes.
-	 */
-	async getAttributes(blobObjectId: string): Promise<Record<string, string>> {
-		return getBlobAttributesByObjectId(blobObjectId);
-	}
+    /**
+     * Download a file by blob ID.
+     */
+    async download(blobId: string): Promise<Uint8Array> {
+        return getBlobData(blobId);
+    }
+
+    /**
+     * Read on-chain blob attributes.
+     */
+    async getAttributes(blobObjectId: string): Promise<Record<string, string>> {
+        return getBlobAttributesByObjectId(blobObjectId);
+    }
 }

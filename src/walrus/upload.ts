@@ -25,7 +25,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 	try {
 		const { suiKeypair, fileBytes, deletable = true, epochs = 3, walAmount = 0.1 } = options;
 		const config = getSDKConfig();
-		const suiClient = new SuiClient({ url: config.suiUrl! });
+		const suiClient = new SuiClient({ url: config.suiUrl!, network: 'testnet' });
 		const sender = suiKeypair.getPublicKey().toSuiAddress();
 		const walrusClient = getWalrusClient();
 

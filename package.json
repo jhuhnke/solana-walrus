@@ -49,6 +49,7 @@
     "@wormhole-foundation/sdk-sui": "^1.16.1",
     "axios": "^1.8.4",
     "bs58": "^6.0.0",
+    "fetch-blob": "^4.0.0",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {

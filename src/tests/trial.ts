@@ -1,9 +1,7 @@
 import { wormhole, amount, Wormhole } from '@wormhole-foundation/sdk';
 import solana from '@wormhole-foundation/sdk/solana';
 import sui from '@wormhole-foundation/sdk/sui';
-import { getFullnodeUrl, SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
-import { mnemonicToSeedHex } from '@mysten/sui/cryptography';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import bs58 from 'bs58';
