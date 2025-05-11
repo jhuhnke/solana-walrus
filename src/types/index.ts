@@ -30,6 +30,7 @@ export interface StorageQuoteOptions {
 
 export interface StorageQuoteBreakdown {
   walCost: number;
+  writeCost: number;
   suiCost: number;
   totalCost: number;
   encodedSize: number;

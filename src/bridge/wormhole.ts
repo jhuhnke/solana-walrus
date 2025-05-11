@@ -54,8 +54,10 @@ export async function createAndSendWormholeMsg(params: {
 
   // 3. Prepare Solana signer using the same RPC
   const connection = new Connection(rpc, "confirmed");
-  const solanaKeypair = Keypair.fromSecretKey(
-      new Uint8Array(JSON.parse(fs.readFileSync('./test-wallet.json', 'utf8')))
+  const solanaKeypair = wallet instanceof Keypair 
+    ? wallet 
+    : Keypair.fromSecretKey(
+        new Uint8Array(JSON.parse(fs.readFileSync("./src/tests/test-wallet.json", "utf8")))
   );
   const { addr: solAddr, signer: solSigner } = await getSolanaSigner(
       wh.getChain("Solana"),
@@ -102,7 +104,7 @@ export async function createAndSendWormholeMsg(params: {
 
   // 9. Wait for VAA (attestation)
   console.log("[⏳] Waiting for VAA...");
-  await xfer.fetchAttestation(5 * 60_000);
+  await xfer.fetchAttestation(10 * 60_000);
   console.log("[✅] VAA received.");
 
   // 10. Complete transfer on Sui

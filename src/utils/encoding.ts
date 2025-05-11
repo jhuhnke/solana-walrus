@@ -1,34 +1,32 @@
-import { getWalrusClient } from '../walrus/client';
-import { StorageQuoteOptions, StorageQuoteBreakdown } from '../types';
+import { WalrusClient } from "@mysten/walrus";
+import { StorageQuoteOptions, StorageQuoteBreakdown } from "../types";
+import { getWalrusClient } from "../walrus/client";
 
-// Constants based on Walrus docs
-const METADATA_OVERHEAD = 64_000_000; // 64MB of fixed metadata
-const ERASURE_CODING_MULTIPLIER = 5; // Encoded blob is ~5x original size
-const WAL_COST_PER_BYTE_PER_EPOCH = 0.00000001; // Simulated WAL cost per byte per epoch
-const SUI_TRANSACTION_COST = 0.01; // Fixed SUI gas cost (simulated)
+// SUI Transaction Cost (fixed for simplicity)
+const SUI_TRANSACTION_COST = 0.015; // SUI (simulated)
 
 export async function getStorageQuote(options: StorageQuoteOptions): Promise<StorageQuoteBreakdown> {
-	const { bytes, epochs = 3, deletable = true } = options;
+    const { bytes, epochs = 3, deletable = true } = options;
 
-	const encodedSize = (bytes * ERASURE_CODING_MULTIPLIER) + METADATA_OVERHEAD;
+    // ✅ 1. Fetch the pre-configured Walrus client
+    const client = getWalrusClient();
 
-	const walCost = encodedSize * epochs * WAL_COST_PER_BYTE_PER_EPOCH;
+    // ✅ 2. Use the Walrus SDK's built-in method for cost estimation
+    const { storageCost, writeCost, totalCost } = await client.storageCost(bytes, epochs);
 
-	const suiCost = SUI_TRANSACTION_COST;
-
-	const totalCost = walCost + suiCost;
-
-	return {
-		walCost,
-		suiCost,
-		totalCost,
-		encodedSize,
-		epochs,
-	};
+    // ✅ 3. Return the full breakdown
+    return {
+        walCost: Number(storageCost),
+        writeCost: Number(writeCost),
+        suiCost: SUI_TRANSACTION_COST,
+        totalCost: Number(totalCost) + SUI_TRANSACTION_COST,
+        encodedSize: bytes,
+        epochs,
+    };
 }
 
 export async function hashFile(file: File): Promise<string> {
-	const buffer = await file.arrayBuffer();
-	const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-	return Buffer.from(hashBuffer).toString('hex');
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    return Buffer.from(hashBuffer).toString("hex");
 }
