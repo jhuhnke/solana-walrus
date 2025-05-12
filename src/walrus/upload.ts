@@ -1,7 +1,6 @@
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { initializeClients } from "../walrus/client";
+import { getSuiClient, getWalrusClient, getSDKConfig } from "../config";
 import { swapWSOLtoWAL } from "../swap/dexRouter";
-import { getSDKConfig } from "../config";
 
 export interface FinalizeUploadResult {
     blobId: string;
@@ -22,10 +21,15 @@ export interface FinalizeUploadOptions {
  */
 export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promise<FinalizeUploadResult> {
     try {
+        // Extract and validate inputs
         const { suiKeypair, fileBytes, deletable = true, epochs = 3, walAmount = 0.1 } = options;
-        const config = getSDKConfig();
-        const { suiClient, walrusClient } = initializeClients();
         const sender = suiKeypair.getPublicKey().toSuiAddress();
+
+        // Fetch global clients and config
+        const suiClient = getSuiClient();
+        const walrusClient = getWalrusClient();
+        const config = getSDKConfig();
+        const { wsSol, wal } = config.tokenAddresses[config.network];
 
         console.log(`[🔑] Sui Sender Address: ${sender}`);
 
@@ -33,13 +37,13 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         console.log(`[🔄] Swapping WSOL to WAL...`);
         await swapWSOLtoWAL({
             signer: suiKeypair,
-            wsSolCoinType: config.tokenAddresses[config.network].wsSol,
-            walCoinType: config.tokenAddresses[config.network].wal,
+            wsSolCoinType: wsSol,
+            walCoinType: wal,
             amount: (walAmount * 1e9).toFixed(0),
         });
         console.log(`[✅] Swap complete.`);
 
-        // ✅ 2. Encode the file (generates blobId, rootHash, metadata, slivers)
+        // ✅ 2. Encode the file
         console.log(`[🗄️] Encoding file...`);
         const encoded = await walrusClient.encodeBlob(fileBytes);
         console.log(`[✅] Encoding complete. Blob ID: ${encoded.blobId}`);
@@ -54,7 +58,6 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
             epochs,
             owner: sender,
         });
-        console.log(`[✅] Blob registration transaction created.`);
 
         const registerResult = await suiClient.signAndExecuteTransaction({
             signer: suiKeypair,
@@ -63,20 +66,16 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob registration complete. Result:`, registerResult);
 
-        // ✅ 4. Find the blob object
+        // ✅ 4. Locate the blob object
         console.log(`[🔍] Locating blob object...`);
         const blobType = await walrusClient.getBlobType();
-        console.log(`[🗄️] Blob Type: ${blobType}`);
-        console.log(`[📝] Register Result:`, registerResult);
 
         const blobObject = registerResult.objectChanges?.find(
             (obj) => obj.type === "created" && "objectType" in obj && obj.objectType === blobType
         ) as { objectId: string } | undefined;
 
         if (!blobObject) {
-            console.error(`[❌] Blob object not found in transaction result.`);
-            console.error(`[❌] Full Register Result:`, registerResult);
-            throw new Error("Blob object not found in transaction result");
+            throw new Error(`[❌] Blob object not found in transaction result.`);
         }
 
         console.log(`[✅] Blob object found. Object ID: ${blobObject.objectId}`);
@@ -100,7 +99,6 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
             confirmations,
             deletable,
         });
-        console.log(`[✅] Certify transaction created.`);
 
         const certifyResult = await suiClient.signAndExecuteTransaction({
             signer: suiKeypair,
@@ -109,8 +107,9 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob certification complete. Result:`, certifyResult);
 
+        // ✅ 7. Verify certification success
         if (certifyResult.effects?.status.status !== "success") {
-            throw new Error("Certify blob transaction failed");
+            throw new Error("[❌] Certify blob transaction failed");
         }
 
         console.log(`[✅] Blob certification successful. Blob ID: ${encoded.blobId}`);
@@ -120,6 +119,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
             uploadTxDigest: registerResult.digest,
             certifyTxDigest: certifyResult.digest,
         };
+
     } catch (error) {
         console.error(`[❌] Error in finalizeUploadOnSui:`, error);
         throw error;

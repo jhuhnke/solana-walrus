@@ -1,4 +1,4 @@
-import { initializeClients } from "../walrus/client";
+import { getWalrusClient } from "../config";
 import { getSDKConfig } from "../config";
 
 /**
@@ -8,8 +8,9 @@ import { getSDKConfig } from "../config";
 export async function getBlobData(blobId: string): Promise<Uint8Array> {
     try {
         // ✅ Use the shared SuiClient and WalrusClient
-        const { walrusClient } = initializeClients();
         console.log(`[🔄] Fetching blob data for Blob ID: ${blobId}`);
+       
+        const walrusClient = getWalrusClient(); 
 
         // ✅ Read the blob from Walrus
         const blobBytes = await walrusClient.readBlob({ blobId });

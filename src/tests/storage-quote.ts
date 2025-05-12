@@ -24,7 +24,8 @@ const blob = new Uint8Array(fileBuffer);
 
 async function main() {
     const epochs = 3;
-    console.log(blob.length)
+    console.log(blob.length); 
+    console.log(suiClient); 
     console.log(walrusClient); 
     console.log(epochs)
     const quote = await walrusClient.storageCost(blob.length, epochs);

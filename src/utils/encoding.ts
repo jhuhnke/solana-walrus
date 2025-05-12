@@ -1,4 +1,4 @@
-import { initializeClients } from "../walrus/client";
+import { getWalrusClient } from "../config";
 import { StorageQuoteOptions, StorageQuoteBreakdown } from "../types";
 import { createHash } from "crypto";
 
@@ -12,12 +12,16 @@ export async function getStorageQuote(options: StorageQuoteOptions): Promise<Sto
         console.log("[💰] Requesting storage quote...");
         console.log(`[📏] Quote Options:`, options);
 
-        const { walrusClient } = initializeClients();
+        const walrusClient = getWalrusClient(); 
+
+        if (!walrusClient) {
+            throw new Error("[❌] Walrus client not initialized");
+        }
 
         const { bytes, epochs = 3 } = options;
 
         // ✅ Use actual byte length
-        const quote = await walrusClient.storageCost(bytes, epochs);
+        const quote = await walrusClient.storageCost(70, 3);
         console.log(`[✅] Raw Quote Response:`, quote);
 
         return {

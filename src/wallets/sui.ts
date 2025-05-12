@@ -1,5 +1,5 @@
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { initializeClients } from "../walrus/client";  
+import { suiClient } from "../walrus/client";  
 
 type SuiAddress = {
   chain(): "Sui";
@@ -10,7 +10,6 @@ export function getSuiSigner(
   chain: any,
   keypair: Ed25519Keypair
 ): { addr: SuiAddress; signer: SuiAddress & { sign(tx: any): Promise<any> } } {
-  const { suiClient } = initializeClients(); 
 
   const addr: SuiAddress = {
     chain() { return "Sui"; },

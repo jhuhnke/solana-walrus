@@ -1,4 +1,4 @@
-// src/clients/suiClient.ts
+// src/walrus/client.ts
 
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { WalrusClient } from "@mysten/walrus";
@@ -12,6 +12,10 @@ export function initializeClients() {
         console.log("[🔄] Initializing SuiClient and WalrusClient...");
 
         const config = getSDKConfig();
+
+        if (!config.suiUrl || !config.network) {
+            throw new Error("[❌] Missing required SUI URL or network configuration");
+        }
 
         suiClient = new SuiClient({
             url: config.suiUrl || getFullnodeUrl(config.network),
@@ -31,5 +35,12 @@ export function initializeClients() {
         console.log(`[✅] Walrus Client Initialized for ${config.network}:`, walrusClient);
     }
 
+    if (!suiClient || !walrusClient) {
+        throw new Error("[❌] Failed to initialize SuiClient or WalrusClient");
+    }
+
     return { suiClient, walrusClient };
 }
+
+// ✅ Export the already-initialized clients
+export { suiClient, walrusClient };
