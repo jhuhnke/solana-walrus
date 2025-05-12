@@ -1,5 +1,3 @@
-// src/config.ts
-
 import { WalrusClient } from "@mysten/walrus";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 
@@ -45,7 +43,7 @@ export function configureSDK(config: SDKConfig) {
     suiClient = new SuiClient({
         url: config.suiUrl || getFullnodeUrl(config.network),
         network: config.network,
-    });
+    });//.$extend(WalrusClient.experimental_asClientExtension());
 
     walrusClient = new WalrusClient({
         network: config.network,

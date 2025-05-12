@@ -13,14 +13,10 @@ export function initializeClients() {
 
         const config = getSDKConfig();
 
-        if (!config.suiUrl || !config.network) {
-            throw new Error("[❌] Missing required SUI URL or network configuration");
-        }
-
         suiClient = new SuiClient({
             url: config.suiUrl || getFullnodeUrl(config.network),
             network: config.network,
-        });
+        }).$extend(WalrusClient.experimental_asClientExtension());
 
         walrusClient = new WalrusClient({
             network: config.network,
@@ -35,12 +31,16 @@ export function initializeClients() {
         console.log(`[✅] Walrus Client Initialized for ${config.network}:`, walrusClient);
     }
 
-    if (!suiClient || !walrusClient) {
-        throw new Error("[❌] Failed to initialize SuiClient or WalrusClient");
-    }
-
     return { suiClient, walrusClient };
 }
 
-// ✅ Export the already-initialized clients
-export { suiClient, walrusClient };
+// ✅ Use these functions instead of the direct exports
+export function getSuiClient() {
+    if (!suiClient) throw new Error("[❌] SuiClient not initialized");
+    return suiClient;
+}
+
+export function getWalrusClient() {
+    if (!walrusClient) throw new Error("[❌] WalrusClient not initialized");
+    return walrusClient;
+}
