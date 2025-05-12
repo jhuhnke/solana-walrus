@@ -1,4 +1,4 @@
-import { getWalrusClient } from "./client";
+import { initializeClients} from "./client";
 
 /**
  * Fetches on-chain attributes (key-value metadata) for a Walrus blob.
@@ -6,8 +6,9 @@ import { getWalrusClient } from "./client";
 export async function getBlobAttributesByObjectId(
 	blobObjectId: string,
 ): Promise<Record<string, string>> {
-	const walrusClient = getWalrusClient();
 
+	const { walrusClient } = initializeClients();
+	
 	const attributes = await walrusClient.readBlobAttributes({
 		blobObjectId,
 	});

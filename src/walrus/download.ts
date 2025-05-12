@@ -1,22 +1,23 @@
-import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
-import { WalrusClient } from "@mysten/walrus";
+import { initializeClients } from "../walrus/client";
 import { getSDKConfig } from "../config";
 
 /**
- * Downloads blob contents from Walrus using client extension.
+ * Downloads blob contents from Walrus using the shared SuiClient.
  * Returns the original file content as a Uint8Array.
  */
 export async function getBlobData(blobId: string): Promise<Uint8Array> {
-	const config = getSDKConfig();
+    try {
+        // ✅ Use the shared SuiClient and WalrusClient
+        const { walrusClient } = initializeClients();
+        console.log(`[🔄] Fetching blob data for Blob ID: ${blobId}`);
 
-	// 1. Initialize a SuiClient and extend with Walrus
-	const client = new SuiClient({
-		url: config.suiUrl || getFullnodeUrl(config.network),
-		network: config.network,
-	}).$extend(WalrusClient.experimental_asClientExtension());
+        // ✅ Read the blob from Walrus
+        const blobBytes = await walrusClient.readBlob({ blobId });
 
-	// 2. Read blob from Walrus
-	const blobBytes = await client.walrus.readBlob({ blobId });
-
-	return new Uint8Array(blobBytes);
+        console.log(`[✅] Blob data retrieved. Size: ${blobBytes.length} bytes`);
+        return new Uint8Array(blobBytes);
+    } catch (error) {
+        console.error(`[❌] Failed to fetch blob data for Blob ID ${blobId}:`, error);
+        throw error;
+    }
 }

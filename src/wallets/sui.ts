@@ -1,5 +1,5 @@
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { SuiClient } from "@mysten/sui/client";
+import { initializeClients } from "../walrus/client";  
 
 type SuiAddress = {
   chain(): "Sui";
@@ -10,7 +10,7 @@ export function getSuiSigner(
   chain: any,
   keypair: Ed25519Keypair
 ): { addr: SuiAddress; signer: SuiAddress & { sign(tx: any): Promise<any> } } {
-  const provider: SuiClient = chain.provider;
+  const { suiClient } = initializeClients(); 
 
   const addr: SuiAddress = {
     chain() { return "Sui"; },
@@ -25,7 +25,7 @@ export function getSuiSigner(
       const txBytes = new TextEncoder().encode(tx);
       const signature = keypair.sign(txBytes);
 
-      return provider.signAndExecuteTransaction({
+      return suiClient.signAndExecuteTransaction({
           transaction: tx,
           signer: keypair,
       });

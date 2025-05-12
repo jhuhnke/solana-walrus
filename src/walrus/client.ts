@@ -1,37 +1,35 @@
-import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
+// src/clients/suiClient.ts
+
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { WalrusClient } from "@mysten/walrus";
 import { getSDKConfig } from "../config";
 
+let suiClient: SuiClient | null = null;
 let walrusClient: WalrusClient | null = null;
 
-export function getWalrusClient(): WalrusClient {
-    if (walrusClient) return walrusClient;
+export function initializeClients() {
+    if (!suiClient || !walrusClient) {
+        console.log("[🔄] Initializing SuiClient and WalrusClient...");
 
-    const config = getSDKConfig();
-    const suiUrl = config.suiUrl || getFullnodeUrl(config.network);
+        const config = getSDKConfig();
 
-    // 🌐 Correct SuiClient initialization
-    console.log(`[🌐] Initializing Sui Client with URL: ${suiUrl}`);
-    const suiClient = new SuiClient({
-        url: suiUrl,
-        network: 'testnet'
-    });
+        suiClient = new SuiClient({
+            url: config.suiUrl || getFullnodeUrl(config.network),
+            network: config.network,
+        });
 
-    // ✅ Additional Debug Logging
-    console.log(`[✅] Sui Client Initialized:`, suiClient);
-    console.log(`[⚙️] Sui Client Network:`, suiUrl);
+        walrusClient = new WalrusClient({
+            network: config.network,
+            suiClient,
+            packageConfig: {
+                systemObjectId: "0x6c2547cbbc38025cf3adac45f63cb0a8d12ecf777cdc75a4971612bf97fdf6af",
+                stakingPoolId: "0xbe46180321c30aab2f8b3501e24048377287fa708018a5b7c2792b35fe339ee3",
+            },
+        });
 
-    // 🚀 Initialize the WalrusClient
-    const { suiRpcUrl, ...safeWalrusOptions } = config.walrusOptions || {};
-    walrusClient = new WalrusClient({
-        network: config.network,
-        suiClient,  // Attach the SuiClient here
-        ...safeWalrusOptions,
-    });
+        console.log(`[✅] Sui Client Initialized for ${config.network}:`, suiClient);
+        console.log(`[✅] Walrus Client Initialized for ${config.network}:`, walrusClient);
+    }
 
-    // ✅ Final Verification
-    console.log(`[✅] Walrus Client Initialized:`, walrusClient);
-    console.log(`[⚙️] Walrus Client Properties:`, Object.keys(walrusClient));
-
-    return walrusClient;
+    return { suiClient, walrusClient };
 }
