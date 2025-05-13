@@ -8,7 +8,7 @@ async function main() {
     try {
         console.log("[🛠️] Configuring SDK...");
 
-        // ✅ Configure SDK
+        // ✅ Configure SDK (Initialize Clients)
         const sdk = new WalrusSolanaSDK({
             network: "testnet",
             suiUrl: "https://fullnode.testnet.sui.io:443",
@@ -37,12 +37,12 @@ async function main() {
         const solanaWallet = Keypair.fromSecretKey(Uint8Array.from(secretKeyData));
         console.log(`[✅] Solana wallet loaded. Address: ${solanaWallet.publicKey.toBase58()}`);
 
-        // ✅ Load Sui Keypair
-        const importPath = path.join(baseDir, "src/tests/sui-wallet.json");
-        if (!fs.existsSync(importPath)) {
-            throw new Error(`[❌] Sui wallet file not found at ${importPath}`);
+        // ✅ Load Sui Keypair (and use the same path for mnemonic)
+        const mnemonicPath = path.join(baseDir, "src/tests/sui-wallet.json");
+        if (!fs.existsSync(mnemonicPath)) {
+            throw new Error(`[❌] Sui wallet file not found at ${mnemonicPath}`);
         }
-        const importData = JSON.parse(fs.readFileSync(importPath, "utf8"));
+        const importData = JSON.parse(fs.readFileSync(mnemonicPath, "utf8"));
         const suiKeypair = Ed25519Keypair.deriveKeypair(importData.mnemonic);
         const suiAddress = suiKeypair.getPublicKey().toSuiAddress();
         console.log(`[✅] Sui keypair loaded. Address: ${suiAddress}`);
@@ -53,8 +53,18 @@ async function main() {
             throw new Error(`[❌] File not found at ${filePath}`);
         }
 
+        const fileBuffer = fs.readFileSync(filePath);
+        const fileSize = fileBuffer.length;
+        console.log(`[✅] File loaded. Size: ${fileSize} bytes`);
+
+        // ✅ Extract epochs and deletable flag
         const epochs = parseInt(process.argv[2], 10) || 8;
         const deletable = process.argv.includes("--deletable");
+
+        // ✅ Fetch and print storage quote
+        console.log(`[💰] Fetching storage quote for ${fileSize} bytes over ${epochs} epochs...`);
+        const quote = await sdk.storageQuote(fileSize, epochs);
+        console.log(`[✅] Storage Quote:`, quote);
 
         // ✅ Upload File
         console.log(`[📤] Uploading ${filePath}...`);
@@ -65,6 +75,7 @@ async function main() {
             suiKeypair,
             epochs,
             deletable,
+            mnemonicPath,  // Use the same path as the Sui wallet
         });
 
         console.log(`[✅] Upload successful. Blob ID: ${blobId}`);

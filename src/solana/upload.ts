@@ -14,7 +14,6 @@ import {
   Transaction,
   VersionedTransaction,
 } from "@solana/web3.js";
-import bs58 from "bs58";
 import fs from "fs";
 
 // 🔧 Use your custom RPC for faster blockhash lookups
@@ -35,6 +34,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
     epochs,
     deletable,
     connection,
+    mnemonicPath: string,
   } = options;
 
   console.log("[📤] Starting file upload...");
@@ -75,11 +75,17 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   const { wsSol, wal } = config.tokenAddresses[config.network];
 
   // ✅ Check Astros gas sponsorship
+  const mnemonicPath = options.mnemonicPath;
+  if (!mnemonicPath) {
+      throw new Error("[❌] Missing required mnemonic path for gas-free swap check.");
+  }
+
   const gasFree = await isAstrosGasFreeSwapAvailable(
-    wsSol,
-    wal,
-    (estimatedSOL * 1e9).toFixed(0),
-    suiReceiver
+      wal,
+      (estimatedSOL * 1e9).toFixed(0),
+      suiReceiver,
+      config.network,
+      mnemonicPath
   );
   const protocolFeePercent = gasFree ? 0.01 : 0.02;
   const totalSOL = estimatedSOL * (1 + protocolFeePercent);

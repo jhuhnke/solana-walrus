@@ -11,6 +11,7 @@ import { PublicKey } from "@solana/web3.js";
 
 export class WalrusSolanaSDK {
     constructor(config) {
+        // ✅ Configure and initialize clients
         configureSDK(config);
     }
 
@@ -79,14 +80,3 @@ export class WalrusSolanaSDK {
         return getWalrusClient();
     }
 }
-
-/**
- * Directly expose utility functions for convenience.
- */
-export {
-    configureSDK,
-    getSDKConfig,
-    getSuiClient,
-    getWalrusClient,
-    getStorageQuote,
-};

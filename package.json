@@ -38,6 +38,7 @@
     "url": "https://github.com/your-org/solana-walrus"
   },
   "dependencies": {
+    "@mysten/deepbook-v3": "^0.14.7",
     "@mysten/sui": "^1.29.1",
     "@mysten/walrus": "^0.0.19",
     "@noble/curves": "^1.9.0",
@@ -47,9 +48,11 @@
     "@wormhole-foundation/sdk": "^1.16.1",
     "@wormhole-foundation/sdk-solana": "^1.16.1",
     "@wormhole-foundation/sdk-sui": "^1.16.1",
+    "aftermath-ts-sdk": "^1.2.69",
     "axios": "^1.8.4",
     "bs58": "^6.0.0",
     "fetch-blob": "^4.0.0",
+    "kriya-v3-sdk": "^2.0.23",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
