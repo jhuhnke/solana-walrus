@@ -1,15 +1,16 @@
 // src/sdk/index.ts
 
-import { configureSDK, SDKConfig } from "../config";
+import { configureSDK, getSDKConfig, getSuiClient, getWalrusClient } from "../config";
 import { uploadFile } from "../solana/upload";
 import { deleteFile } from "../solana/delete";
 import { getBlobData } from "../walrus/download";
 import { getBlobAttributesByObjectId } from "../walrus/attributes";
+import { getStorageQuote } from "../utils/encoding";
 import { UploadOptions } from "../types";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 
 export class WalrusSolanaSDK {
-    constructor(config: SDKConfig) {
+    constructor(config) {
         configureSDK(config);
     }
 
@@ -46,4 +47,46 @@ export class WalrusSolanaSDK {
     async getAttributes(blobObjectId: string): Promise<Record<string, string>> {
         return getBlobAttributesByObjectId(blobObjectId);
     }
+
+    /**
+     * Get on-chain storage price in SOL. 
+     */
+    async storageQuote(fileSize: number, epochs: number) {
+        return getStorageQuote({
+            bytes: fileSize, 
+            epochs, 
+        }); 
+    }
+
+    /**
+     * Get the current SDK configuration.
+     */
+    getConfig() {
+        return getSDKConfig();
+    }
+
+    /**
+     * Get the Sui client.
+     */
+    getSuiClient() {
+        return getSuiClient();
+    }
+
+    /**
+     * Get the Walrus client.
+     */
+    getWalrusClient() {
+        return getWalrusClient();
+    }
 }
+
+/**
+ * Directly expose utility functions for convenience.
+ */
+export {
+    configureSDK,
+    getSDKConfig,
+    getSuiClient,
+    getWalrusClient,
+    getStorageQuote,
+};

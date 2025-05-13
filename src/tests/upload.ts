@@ -1,17 +1,15 @@
-import { getSuiClient, configureSDK, getSDKConfig, getWalrusClient } from "../config";
+import { WalrusSolanaSDK } from "../sdk";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { Connection, Keypair } from "@solana/web3.js";
+import { Keypair } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
-
-const SUI_TRANSACTION_COST = 0.015;
 
 async function main() {
     try {
         console.log("[🛠️] Configuring SDK...");
 
         // ✅ Configure SDK
-        configureSDK({
+        const sdk = new WalrusSolanaSDK({
             network: "testnet",
             suiUrl: "https://fullnode.testnet.sui.io:443",
             solanaRpcUrl: "https://api.devnet.solana.com",
@@ -27,13 +25,11 @@ async function main() {
             },
         });
 
-        const suiClient = getSuiClient();
-        const walrusClient = getWalrusClient();
-        console.log("[✅] Sui Client initialized via SDK:", suiClient);
-        console.log("[✅] Walrus Client initialized via SDK:", walrusClient);
+        // ✅ Resolve Paths (Avoid Double `src/tests`)
+        const baseDir = path.resolve(__dirname, "../..");
 
         // ✅ Load Solana Wallet
-        const walletPath = path.join(__dirname, "test-wallet.json");
+        const walletPath = path.join(baseDir, "src/tests/test-wallet.json");
         if (!fs.existsSync(walletPath)) {
             throw new Error(`[❌] Wallet file not found at ${walletPath}`);
         }
@@ -42,7 +38,7 @@ async function main() {
         console.log(`[✅] Solana wallet loaded. Address: ${solanaWallet.publicKey.toBase58()}`);
 
         // ✅ Load Sui Keypair
-        const importPath = path.join(__dirname, "sui-wallet.json");
+        const importPath = path.join(baseDir, "src/tests/sui-wallet.json");
         if (!fs.existsSync(importPath)) {
             throw new Error(`[❌] Sui wallet file not found at ${importPath}`);
         }
@@ -51,39 +47,32 @@ async function main() {
         const suiAddress = suiKeypair.getPublicKey().toSuiAddress();
         console.log(`[✅] Sui keypair loaded. Address: ${suiAddress}`);
 
-        // ✅ Fetch WAL Balance
-        const balanceResponse = await suiClient.getCoins({ owner: suiAddress });
-        console.log(`[✅] Balance for ${suiAddress}:`, balanceResponse);
-
-        // ✅ Check Solana Balance
-        const connection = new Connection(getSDKConfig().solanaRpcUrl!);
-        const solBalance = await connection.getBalance(solanaWallet.publicKey);
-        console.log(`[✅] Solana balance: ${(solBalance / 1e9).toFixed(4)} SOL`);
-
-        // ✅ Read File for Storage Quote
-        const filePath = path.join(__dirname, "test.txt");
+        // ✅ Read File for Upload
+        const filePath = path.join(baseDir, "src/tests/test.txt");
         if (!fs.existsSync(filePath)) {
             throw new Error(`[❌] File not found at ${filePath}`);
         }
 
-        const fileBuffer = fs.readFileSync(filePath);
-        const fileSize = fileBuffer.length;
-        const epochs = 3;
+        const epochs = parseInt(process.argv[2], 10) || 8;
+        const deletable = process.argv.includes("--deletable");
 
-        console.log(`[💰] Fetching storage quote for ${fileSize} bytes over ${epochs} epochs...`);
-        const quote = await walrusClient.storageCost(fileSize, epochs);
-        console.log(`[✅] Storage Quote:`, {
-            walCost: Number(quote.storageCost) / 1e9,
-            writeCost: Number(quote.writeCost) / 1e9,
-            suiCost: SUI_TRANSACTION_COST,
-            totalCost: (Number(quote.totalCost) / 1e9) + SUI_TRANSACTION_COST,
-            encodedSize: fileSize,
+        // ✅ Upload File
+        console.log(`[📤] Uploading ${filePath}...`);
+        const blobId = await sdk.upload({
+            file: filePath,
+            wallet: solanaWallet,
+            suiReceiverAddress: suiAddress,
+            suiKeypair,
             epochs,
+            deletable,
         });
+
+        console.log(`[✅] Upload successful. Blob ID: ${blobId}`);
 
     } catch (error) {
         console.error("[❌] Test failed:", error);
-        throw error;
+        console.error(error);
+        process.exit(1);
     }
 }
 

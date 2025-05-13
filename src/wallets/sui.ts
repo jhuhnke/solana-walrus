@@ -1,5 +1,5 @@
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { suiClient } from "../walrus/client";  
+import { getSuiClient } from "../walrus/client";  
 
 type SuiAddress = {
   chain(): "Sui";
@@ -23,6 +23,8 @@ export function getSuiSigner(
       // Use the keypair's signing method directly
       const txBytes = new TextEncoder().encode(tx);
       const signature = keypair.sign(txBytes);
+
+      const suiClient = getSuiClient();
 
       return suiClient.signAndExecuteTransaction({
           transaction: tx,
