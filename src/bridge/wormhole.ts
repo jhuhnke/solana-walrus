@@ -57,7 +57,7 @@ export async function createAndSendWormholeMsg(params: {
   const solanaKeypair = wallet instanceof Keypair 
     ? wallet 
     : Keypair.fromSecretKey(
-        new Uint8Array(JSON.parse(fs.readFileSync("./src/tests/test-wallet.json", "utf8")))
+        new Uint8Array(JSON.parse(fs.readFileSync("./test-wallet.json", "utf8")))
   );
   const { addr: solAddr, signer: solSigner } = await getSolanaSigner(
       wh.getChain("Solana"),

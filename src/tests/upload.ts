@@ -26,10 +26,10 @@ async function main() {
         });
 
         // ✅ Resolve Paths (Avoid Double `src/tests`)
-        const baseDir = path.resolve(__dirname, "../..");
+        const baseDir = path.resolve(__dirname);
 
         // ✅ Load Solana Wallet
-        const walletPath = path.join(baseDir, "src/tests/test-wallet.json");
+        const walletPath = path.join(baseDir, "test-wallet.json");
         if (!fs.existsSync(walletPath)) {
             throw new Error(`[❌] Wallet file not found at ${walletPath}`);
         }
@@ -38,7 +38,7 @@ async function main() {
         console.log(`[✅] Solana wallet loaded. Address: ${solanaWallet.publicKey.toBase58()}`);
 
         // ✅ Load Sui Keypair (and use the same path for mnemonic)
-        const mnemonicPath = path.join(baseDir, "src/tests/sui-wallet.json");
+        const mnemonicPath = path.join(baseDir, "sui-wallet.json");
         if (!fs.existsSync(mnemonicPath)) {
             throw new Error(`[❌] Sui wallet file not found at ${mnemonicPath}`);
         }
@@ -48,7 +48,7 @@ async function main() {
         console.log(`[✅] Sui keypair loaded. Address: ${suiAddress}`);
 
         // ✅ Read File for Upload
-        const filePath = path.join(baseDir, "src/tests/test.txt");
+        const filePath = path.join(baseDir, "test.txt");
         if (!fs.existsSync(filePath)) {
             throw new Error(`[❌] File not found at ${filePath}`);
         }
