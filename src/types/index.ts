@@ -13,6 +13,7 @@ export interface UploadOptions {
   deletable?: boolean;
   connection?: Connection;
   mnemonicPath: string; 
+  suiPath: string;
 }
 
 export interface WormholePayload {

@@ -68,6 +68,7 @@ async function main() {
 
         // ✅ Upload File
         console.log(`[📤] Uploading ${filePath}...`);
+        const suiPath = "/home/jhuhnke/.local/bin/walrus";
         const blobId = await sdk.upload({
             file: filePath,
             wallet: solanaWallet,
@@ -75,7 +76,8 @@ async function main() {
             suiKeypair,
             epochs,
             deletable,
-            mnemonicPath,  // Use the same path as the Sui wallet
+            mnemonicPath,
+            suiPath,  // Pass the SUI binary path
         });
 
         console.log(`[✅] Upload successful. Blob ID: ${blobId}`);
