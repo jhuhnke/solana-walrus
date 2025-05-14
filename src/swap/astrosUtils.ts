@@ -2,8 +2,6 @@ import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
 import { getSuiClient } from "../config";
 import fs from "fs";
 import { execSync } from "child_process";
-import path from "path";
-import os from "os";
 
 export async function isAstrosGasFreeSwapAvailable(
     walCoinType: string,
@@ -11,14 +9,14 @@ export async function isAstrosGasFreeSwapAvailable(
     sender: string,
     network: "testnet" | "mainnet",
     mnemonicPath: string,
-    suiCliPath?: string  // ✅ Optional CLI path
+    suiCliPath?: string  
 ): Promise<boolean> {
     if (network !== "testnet") {
         console.log("[⚠️] Only testnet is supported for SUI -> WAL swaps.");
         return false;
     }
 
-    // ✅ Load mnemonic from user-provided file
+    // ✅ Validate mnemonic file
     if (!fs.existsSync(mnemonicPath)) {
         throw new Error(`[❌] Mnemonic file not found at ${mnemonicPath}`);
     }
@@ -38,7 +36,7 @@ export async function isAstrosGasFreeSwapAvailable(
             coinType: "0x2::sui::SUI",
         });
 
-        const minimumBalance = 0.5 * 1e9; // 0.5 SUI
+        const minimumBalance = 1 * 1e9;
         const currentBalance = Number(balances.totalBalance || "0");
 
         console.log(`[🪙] Current SUI balance: ${(currentBalance / 1e9).toFixed(4)} SUI`);
@@ -55,33 +53,36 @@ export async function isAstrosGasFreeSwapAvailable(
             console.log("[✅] Account has sufficient SUI. Skipping faucet.");
         }
 
-        // ✅ Use the Walrus CLI for the swap
-        const walrusPath = suiCliPath || "/home/jhuhnke/.local/bin/walrus";  // Default to known path
+        // ✅ Determine Walrus CLI path
+        const defaultWalrusPath = "/usr/local/bin/walrus";
+        const walrusPath = suiCliPath || defaultWalrusPath;
 
-        // ✅ Check if the walrus CLI is executable
+        // ✅ Validate Walrus CLI executable
         if (!fs.existsSync(walrusPath) || !fs.statSync(walrusPath).isFile()) {
             throw new Error(`[❌] Walrus CLI not found at ${walrusPath}`);
         }
 
+        // ✅ Run the SUI -> WAL swap command
         console.log("[🔄] Attempting SUI -> WAL swap via CLI...");
-        const swapCommand = `${walrusPath} get-wal --amount 1000000000`;
-
+        const swapCommand = `walrus get-wal --amount ${amount}`;
         console.log(`[📝] Swap command: ${swapCommand}`);
 
-        // ✅ Execute the swap command with the correct shell
-        const shell = os.platform() === "win32" ? "powershell.exe" : "/bin/bash";
         const swapOutput = execSync(swapCommand, {
             stdio: "pipe",
             env: process.env,
-            shell,
-        }).toString();
+            shell: "/bin/bash",
+            encoding: "utf-8",
+        });
 
         console.log(`[✅] SUI -> WAL swap successful:`, swapOutput);
-
         return true;
 
     } catch (error) {
-        console.error("[❌] Swap Error:", error);
+        if (error instanceof Error) {
+            console.error("❌ Swap failed:", error.message);
+        } else {
+            console.error("❌ Unknown swap error:", error);
+        }
         return false;
     }
 }
