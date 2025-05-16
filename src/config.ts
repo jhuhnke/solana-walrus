@@ -1,5 +1,3 @@
-// src/config.ts
-
 import { WalrusClient } from "@mysten/walrus";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 

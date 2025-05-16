@@ -8,9 +8,7 @@ import { getCachedOrCreateSuiKeypair } from "../wallets/deriveSuiKeypair";
 import { UploadOptions } from "../types";
 import {
   Connection,
-  Keypair,
-  Transaction,
-  VersionedTransaction,
+  Keypair
 } from "@solana/web3.js";
 import fs from "fs";
 
@@ -37,42 +35,42 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 
   console.log("[📤] Starting file upload...");
 
-  // ✅ Validate wallet
+  // Validate wallet
   if (!(wallet instanceof Keypair)) {
     throw new Error("[❌] Expected a Solana Keypair for the payer.");
   }
 
-  // ✅ Validate file path
+  // Validate file path
   if (typeof file !== "string" || !fs.existsSync(file)) {
     throw new Error(`[❌] Expected a valid file path string, but got ${typeof file}: ${file}`);
   }
 
-  // ✅ Read the file correctly as a Uint8Array
+  // Read the file correctly as a Uint8Array
   const fileBytes = fs.readFileSync(file);
   const fileHash = await hashFile(fileBytes);
   const fileSize = fileBytes.length;
   console.log(`[✅] File size: ${fileSize} bytes, Hash: ${fileHash}`);
 
-  // ✅ Use or generate Sui keypair
+  // Use or generate Sui keypair
   const suiKeypair =
     userProvidedSuiKeypair || getCachedOrCreateSuiKeypair(wallet.publicKey, "./import.json");
   const suiReceiver =
     suiReceiverAddress || suiKeypair.getPublicKey().toSuiAddress();
   console.log(`[✅] Sui keypair resolved. Address: ${suiReceiver}`);
 
-  // ✅ Use provided connection or default
+  // Use provided connection or default
   const solanaConnection = connection || getCustomConnection();
 
-  // ✅ Fetch storage quote
+  // Fetch storage quote
   const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
   const estimatedSOL = quote.totalCost;
   console.log(`[✅] Storage quote received. Total cost: ${estimatedSOL} SOL`);
 
-  // ✅ Get token info
+  // Get token info
   const config = getSDKConfig();
   const { wsSol, wal } = config.tokenAddresses[config.network];
 
-  // ✅ Check Astros gas sponsorship
+  // Check Astros gas sponsorship
   const mnemonicPath = options.mnemonicPath;
   if (!mnemonicPath) {
       throw new Error("[❌] Missing required mnemonic path for gas-free swap check.");
@@ -89,7 +87,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   const totalSOL = estimatedSOL * (1 + protocolFeePercent);
   console.log(`[✅] Total SOL after fees: ${totalSOL} SOL`);
 
-  // ✅ Transfer protocol fee to treasury
+  // Transfer protocol fee to treasury
   const { remainingSOL } = await transferProtocolFee({
     connection: solanaConnection,
     payer: wallet,
@@ -108,7 +106,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   });
   console.log(`[✅] Wormhole message sent successfully.`);
 
-  // ✅ Finalize the upload on Sui
+  // Finalize the upload on Sui
   const result = await finalizeUploadOnSui({
     suiKeypair,
     fileBytes,
@@ -116,7 +114,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
     deletable,
   });
 
-  // ✅ Return blob ID
+  // Return blob ID
   console.log(`[✅] Blob uploaded successfully. Blob ID: ${result.blobId}`);
   return result.blobId;
 }

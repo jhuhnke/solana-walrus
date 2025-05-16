@@ -39,7 +39,6 @@ export async function createAndSendWormholeMsg(params: {
   // 1. Load SDK config & determine RPC URL
   const config = getSDKConfig();
   const rpc = config.solanaRpcUrl || getDefaultSolanaRpc(config.network);
-  console.log(`[🌐] Using Solana RPC: ${rpc}`);
 
   // 2. Initialize Wormhole SDK with custom Solana RPC
   const wh = await wormhole(
@@ -69,13 +68,11 @@ export async function createAndSendWormholeMsg(params: {
       }
 
       const { addr, signer } = await getSuiSigner(mnemonic);
-      console.log(`[🔑] Sui address: ${addr.address()}`);
       return { addr, signer };
   }
 
   // Use the provided mnemonic path from params
   const { addr: suiAddr, signer: suiSigner } = await loadSuiSigner(params.mnemonicPath);
-
 
 
   // 5. Determine WSOL TokenId & decimals
@@ -89,13 +86,12 @@ export async function createAndSendWormholeMsg(params: {
     }
     decimals = Number(d);
   }
-  console.log(`[🪙] Using ${decimals} decimals for token ${tokenId.address}`);
 
   // 6. Compute transfer amount in smallest units
   const transferAmount = amount.units(
     amount.parse(amountSOL.toFixed(decimals), decimals)
   );
-  console.log(`[💰] Transfer amount: ${transferAmount.toString()} units`);
+  console.log(`[💰] Wormhole Transfer amount: ${transferAmount.toString()} units`);
 
   // 7. Build and send the Wormhole transfer
   const xfer = await wh.tokenTransfer(
@@ -107,7 +103,7 @@ export async function createAndSendWormholeMsg(params: {
   );
 
   // 8. Sign and send the Solana transfer
-  console.log("[🚀] Initiating token transfer...");
+  console.log("[🚀] Initiating wormhole token transfer...");
   const [solTx, bridgeTx] = await xfer.initiateTransfer(solSigner);
   console.log(`[🚀] Solana TX: ${solTx}; Bridge TX: ${bridgeTx}`);
 

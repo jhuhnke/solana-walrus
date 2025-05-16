@@ -8,7 +8,7 @@ import fs from "fs";
  * Load the Sui keypair from the mnemonic in import.json.
  */
 function loadSuiKeypairFromMnemonic(): Ed25519Keypair {
-    const importPath = "./import.json";  // Replace with your actual import file path
+    const importPath = "./import.json";  
     if (!fs.existsSync(importPath)) {
         throw new Error(`[❌] import.json not found at ${importPath}`);
     }

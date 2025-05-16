@@ -33,7 +33,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         console.log(`[✅] Using WAL coin type: ${wal}`);
         console.log(`[🔑] Sui Sender Address: ${sender}`);
 
-        // ✅ 1. Ensure WAL Balance is Sufficient (Mainnet Only)
+        // 1. Ensure WAL Balance is Sufficient (Mainnet Only)
         if (config.network === "mainnet") {
             console.log(`[🔄] Checking WAL balance...`);
             const balanceInfo = await suiClient.getBalance({
@@ -62,12 +62,12 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
             console.log(`[✅] Skipping WSOL -> WAL swap on testnet.`);
         }
 
-        // ✅ 2. Encode the file
+        // 2. Encode the file
         console.log(`[🗄️] Encoding file...`);
         const encoded = await walrusClient.encodeBlob(fileBytes);
         console.log(`[✅] Encoding complete. Blob ID: ${encoded.blobId}`);
 
-        // ✅ 3. Register the blob
+        // 3. Register the blob
         console.log(`[📝] Registering blob with ID: ${encoded.blobId}...`);
         const registerTx = await walrusClient.registerBlobTransaction({
             blobId: encoded.blobId,
@@ -85,7 +85,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob registration complete. Result:`, registerResult);
 
-        // ✅ 4. Locate the blob object
+        // 4. Locate the blob object
         console.log(`[🔍] Locating blob object...`);
         const blobType = await walrusClient.getBlobType();
 
@@ -99,7 +99,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 
         console.log(`[✅] Blob object found. Object ID: ${blobObject.objectId}`);
 
-        // ✅ 5. Upload encoded blob data to nodes
+        // 5. Upload encoded blob data to nodes
         console.log(`[🔄] Writing encoded blob to nodes...`);
         const confirmations = await walrusClient.writeEncodedBlobToNodes({
             blobId: encoded.blobId,
@@ -110,7 +110,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob written to nodes. Confirmations:`, confirmations);
 
-        // ✅ 6. Certify the blob
+        // 6. Certify the blob
         console.log(`[🔒] Certifying blob...`);
         const certifyTx = await walrusClient.certifyBlobTransaction({
             blobId: encoded.blobId,
@@ -126,7 +126,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob certification complete. Result:`, certifyResult);
 
-        // ✅ 7. Verify certification success
+        // 7. Verify certification success
         if (certifyResult.effects?.status.status !== "success") {
             throw new Error("[❌] Certify blob transaction failed");
         }

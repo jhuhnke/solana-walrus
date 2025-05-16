@@ -35,9 +35,8 @@ async function main() {
         }
         const secretKeyData = JSON.parse(fs.readFileSync(solanaWalletPath, "utf8"));
         const solanaWallet = Keypair.fromSecretKey(Uint8Array.from(secretKeyData));
-        console.log(`[✅] Solana wallet loaded. Address: ${solanaWallet.publicKey.toBase58()}`);
 
-        // ✅ Load Sui Keypair (and use the same path for mnemonic)
+        // Load Sui Keypair (and use the same path for mnemonic)
         const mnemonicPath = path.join(baseDir, "sui-wallet.json");
         if (!fs.existsSync(mnemonicPath)) {
             throw new Error(`[❌] Sui wallet file not found at ${mnemonicPath}`);
@@ -45,9 +44,8 @@ async function main() {
         const importData = JSON.parse(fs.readFileSync(mnemonicPath, "utf8"));
         const suiKeypair = Ed25519Keypair.deriveKeypair(importData.mnemonic);
         const suiAddress = suiKeypair.getPublicKey().toSuiAddress();
-        console.log(`[✅] Sui keypair loaded. Address: ${suiAddress}`);
 
-        // ✅ Read File for Upload
+        // Read File for Upload
         const filePath = path.join(baseDir, "test.txt");
         if (!fs.existsSync(filePath)) {
             throw new Error(`[❌] File not found at ${filePath}`);
@@ -55,29 +53,26 @@ async function main() {
 
         const fileBuffer = fs.readFileSync(filePath);
         const fileSize = fileBuffer.length;
-        console.log(`[✅] File loaded. Size: ${fileSize} bytes`);
 
-        // ✅ Extract epochs and deletable flag
+        // Extract epochs and deletable flag
         const epochs = parseInt(process.argv[2], 10) || 8;
         const deletable = process.argv.includes("--deletable");
 
-        // ✅ Fetch and print storage quote
-        console.log(`[💰] Fetching storage quote for ${fileSize} bytes over ${epochs} epochs...`);
+        // Fetch and print storage quote
         const quote = await sdk.storageQuote(fileSize, epochs);
-        console.log(`[✅] Storage Quote:`, quote);
 
-        // ✅ Upload File
+        // Upload File
         console.log(`[📤] Uploading ${filePath}...`);
         const suiPath = "/usr/local/bin/walrus";
         const blobId = await sdk.upload({
             file: filePath,
-            wallet: solanaWallet,            // ✅ Pass the raw Keypair
-            suiReceiverAddress: suiAddress, // ✅ Use the Sui address directly
+            wallet: solanaWallet,           
+            suiReceiverAddress: suiAddress, 
             suiKeypair,
             epochs,
             deletable,
             mnemonicPath,
-            suiPath,  // ✅ Pass the SUI binary path
+            suiPath,  
         });
 
         console.log(`[✅] Upload successful. Blob ID: ${blobId}`);

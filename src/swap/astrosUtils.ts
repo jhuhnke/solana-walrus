@@ -30,7 +30,7 @@ export async function isAstrosGasFreeSwapAvailable(
     try {
         const suiClient = getSuiClient();
 
-        // ✅ Check if the account already has enough SUI
+        // Check if the account already has enough SUI
         const balances = await suiClient.getBalance({
             owner: sender,
             coinType: "0x2::sui::SUI",
@@ -53,16 +53,16 @@ export async function isAstrosGasFreeSwapAvailable(
             console.log("[✅] Account has sufficient SUI. Skipping faucet.");
         }
 
-        // ✅ Determine Walrus CLI path
+        // Determine Walrus CLI path
         const defaultWalrusPath = "/usr/local/bin/walrus";
         const walrusPath = suiCliPath || defaultWalrusPath;
 
-        // ✅ Validate Walrus CLI executable
+        // Validate Walrus CLI executable
         if (!fs.existsSync(walrusPath) || !fs.statSync(walrusPath).isFile()) {
             throw new Error(`[❌] Walrus CLI not found at ${walrusPath}`);
         }
 
-        // ✅ Run the SUI -> WAL swap command
+        // Run the SUI -> WAL swap command
         console.log("[🔄] Attempting SUI -> WAL swap via CLI...");
         const swapCommand = `walrus get-wal --amount ${amount}`;
         console.log(`[📝] Swap command: ${swapCommand}`);

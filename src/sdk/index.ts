@@ -1,6 +1,3 @@
-// src/sdk/index.ts
-
-// ✅ Import all required functions
 import { configureSDK, getSDKConfig, getSuiClient, getWalrusClient } from "../config";
 import { uploadFile } from "../solana/upload";
 import { deleteFile } from "../solana/delete";
@@ -10,7 +7,7 @@ import { getStorageQuote } from "../utils/encoding";
 import { UploadOptions } from "../types";
 import { PublicKey } from "@solana/web3.js";
 
-// ✅ Export the configureSDK function
+// Export the configureSDK function
 export { configureSDK, getSDKConfig, getSuiClient, getWalrusClient };
 
 export class WalrusSolanaSDK {

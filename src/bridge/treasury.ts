@@ -26,8 +26,8 @@ export async function transferProtocolFee({
 
     const lamports = Math.round(feeAmount * 1e9); 
 
-    // ✅ Add recent blockhash
-    const recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+    // Add recent blockhash
+    const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
 
     const transaction = new Transaction({
         recentBlockhash,
@@ -40,7 +40,7 @@ export async function transferProtocolFee({
         })
     ); 
 
-    // ✅ Sign and send transaction
+    // Sign and send transaction
     transaction.partialSign(payer);
     await sendAndConfirmTransaction(connection, transaction, [payer]);
 
