@@ -77,7 +77,7 @@ async function main() {
             epochs,
             deletable,
             mnemonicPath,
-            suiPath,  // Pass the SUI binary path
+            suiPath,  
         });
 
         console.log(`[✅] Upload successful. Blob ID: ${blobId}`);

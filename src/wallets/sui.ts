@@ -1,37 +1,13 @@
+import { wormhole } from "@wormhole-foundation/sdk";
+import sui from "@wormhole-foundation/sdk/sui"; 
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { getSuiClient } from "../walrus/client";  
 
-type SuiAddress = {
-  chain(): "Sui";
-  address(): string;
-};
-
-export function getSuiSigner(
-  chain: any,
-  keypair: Ed25519Keypair
-): { addr: SuiAddress; signer: SuiAddress & { sign(tx: any): Promise<any> } } {
-
-  const addr: SuiAddress = {
-    chain() { return "Sui"; },
-    address() { return keypair.getPublicKey().toSuiAddress(); },
+export async function getSuiSigner(mnemonic: string) {
+  const suiChain = await (await wormhole("Testnet", [sui])).getChain("Sui");
+  const suiSigner =  await (await sui()).getSigner(await suiChain.getRpc(), mnemonic);
+  
+  return {
+    addr: suiSigner,
+    signer: suiSigner,
   };
-
-  const signer: SuiAddress & { sign(tx: any): Promise<any> } = {
-    chain() { return "Sui"; },
-    address() { return keypair.getPublicKey().toSuiAddress(); },
-    async sign(tx: any) {
-      // Use the keypair's signing method directly
-      const txBytes = new TextEncoder().encode(tx);
-      const signature = keypair.sign(txBytes);
-
-      const suiClient = getSuiClient();
-
-      return suiClient.signAndExecuteTransaction({
-          transaction: tx,
-          signer: keypair,
-      });
-    },
-  };
-
-  return { addr, signer };
 }

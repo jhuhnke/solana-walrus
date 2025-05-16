@@ -99,47 +99,47 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   });
   console.log(`[✅] Remaining SOL after fee transfer: ${remainingSOL} SOL`);
 
-  // ✅ Send Wormhole message from Solana → Sui
   await createAndSendWormholeMsg({
-    fileHash,
-    fileSize,
-    amountSOL: remainingSOL,
-    wallet: {
-      publicKey: wallet.publicKey,
-      signTransaction: async (tx) => {
-        try {
-          console.log(`[📝] Attempting to sign transaction...`);
+      fileHash,
+      fileSize,
+      amountSOL: remainingSOL,
+      wallet: {
+          publicKey: wallet.publicKey,
+          signTransaction: async (tx) => {
+              try {
+                  console.log(`[📝] Attempting to sign transaction...`);
 
-          if (tx instanceof Uint8Array) {
-            console.log(`[✅] Received raw Uint8Array, passing through...`);
-            return tx;
-          }
+                  if (tx instanceof Uint8Array) {
+                      console.log(`[✅] Received raw Uint8Array, passing through...`);
+                      return tx;
+                  }
 
-          if (tx instanceof VersionedTransaction) {
-            const { blockhash } =
-              await solanaConnection.getLatestBlockhash("confirmed");
-            tx.message.recentBlockhash = blockhash;
-            tx.sign([wallet]);
-            return tx.serialize();
-          }
+                  if (tx instanceof VersionedTransaction) {
+                      const { blockhash } =
+                          await solanaConnection.getLatestBlockhash("confirmed");
+                      tx.message.recentBlockhash = blockhash;
+                      tx.sign([wallet]);
+                      return tx.serialize();
+                  }
 
-          if (tx instanceof Transaction) {
-            const { blockhash } =
-              await solanaConnection.getLatestBlockhash("confirmed");
-            tx.recentBlockhash = blockhash;
-            tx.partialSign(wallet);
-            return tx.serialize();
-          }
+                  if (tx instanceof Transaction) {
+                      const { blockhash } =
+                          await solanaConnection.getLatestBlockhash("confirmed");
+                      tx.recentBlockhash = blockhash;
+                      tx.partialSign(wallet);
+                      return tx.serialize();
+                  }
 
-          throw new Error(`[❌] Unsupported transaction type: ${Object.getPrototypeOf(tx)?.constructor?.name}`);
-        } catch (err) {
-          console.error(`[❌] Transaction signing failed:`, err);
-          throw err;
-        }
+                  throw new Error(`[❌] Unsupported transaction type: ${Object.getPrototypeOf(tx)?.constructor?.name}`);
+              } catch (err) {
+                  console.error(`[❌] Transaction signing failed:`, err);
+                  throw err;
+              }
+          },
       },
-    },
-    suiReceiver,
-    suiKeypair,
+      suiReceiver,
+      suiKeypair,
+      mnemonicPath,  // ✅ Include this parameter
   });
   console.log(`[✅] Wormhole message sent successfully.`);
 

@@ -37,6 +37,7 @@ export async function createAndSendWormholeMsg(params: {
   };
   suiReceiver?: string;
   suiKeypair: Ed25519Keypair;
+  mnemonicPath: string;
 }): Promise<string> {
   const { fileHash, fileSize, amountSOL, wallet, suiReceiver, suiKeypair } = params;
 
@@ -65,9 +66,27 @@ export async function createAndSendWormholeMsg(params: {
   );
 
   // 4. Prepare Sui signer
-  const { signer: suiSigner } = getSuiSigner(wh.getChain("Sui"), suiKeypair);
-  const suiAddr = suiReceiver || suiKeypair.getPublicKey().toSuiAddress();
-  console.log(`[🔑] Sui address: ${suiAddr}`);
+  async function loadSuiSigner(mnemonicPath: string) {
+      if (!fs.existsSync(mnemonicPath)) {
+          throw new Error(`[❌] Sui wallet file not found at ${mnemonicPath}`);
+      }
+
+      const importData = JSON.parse(fs.readFileSync(mnemonicPath, "utf8"));
+      const mnemonic = importData.mnemonic;
+
+      if (!mnemonic || typeof mnemonic !== "string") {
+          throw new Error(`[❌] Invalid mnemonic in file: ${mnemonicPath}`);
+      }
+
+      const { addr, signer } = await getSuiSigner(mnemonic);
+      console.log(`[🔑] Sui address: ${addr.address()}`);
+      return { addr, signer };
+  }
+
+  // Use the provided mnemonic path from params
+  const { addr: suiAddr, signer: suiSigner } = await loadSuiSigner(params.mnemonicPath);
+
+
 
   // 5. Determine WSOL TokenId & decimals
   const wsSol = config.tokenAddresses[config.network].wsSol;
@@ -93,7 +112,7 @@ export async function createAndSendWormholeMsg(params: {
     tokenId,
     transferAmount,
     Wormhole.chainAddress("Solana", solAddr),
-    Wormhole.chainAddress("Sui", suiAddr),
+    Wormhole.chainAddress("Sui", suiAddr.address()),
     false
   );
 
