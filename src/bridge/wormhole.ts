@@ -29,12 +29,7 @@ export async function createAndSendWormholeMsg(params: {
   fileHash: string;
   fileSize: number;
   amountSOL: number;
-  wallet: {
-    publicKey: PublicKey;
-    signTransaction: (
-      tx: Transaction | Uint8Array | VersionedTransaction
-    ) => Promise<Uint8Array>;
-  };
+  wallet: Keypair;
   suiReceiver?: string;
   suiKeypair: Ed25519Keypair;
   mnemonicPath: string;
@@ -55,14 +50,9 @@ export async function createAndSendWormholeMsg(params: {
 
   // 3. Prepare Solana signer using the same RPC
   const connection = new Connection(rpc, "confirmed");
-  const solanaKeypair = wallet instanceof Keypair 
-    ? wallet 
-    : Keypair.fromSecretKey(
-        new Uint8Array(JSON.parse(fs.readFileSync("./test-wallet.json", "utf8")))
-  );
   const { addr: solAddr, signer: solSigner } = await getSolanaSigner(
       wh.getChain("Solana"),
-      solanaKeypair
+      wallet
   );
 
   // 4. Prepare Sui signer

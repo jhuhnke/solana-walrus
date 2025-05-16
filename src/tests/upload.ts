@@ -29,11 +29,11 @@ async function main() {
         const baseDir = path.resolve(__dirname);
 
         // ✅ Load Solana Wallet
-        const walletPath = path.join(baseDir, "test-wallet.json");
-        if (!fs.existsSync(walletPath)) {
-            throw new Error(`[❌] Wallet file not found at ${walletPath}`);
+        const solanaWalletPath = path.join(baseDir, "test-wallet.json");
+        if (!fs.existsSync(solanaWalletPath)) {
+            throw new Error(`[❌] Solana wallet file not found at ${solanaWalletPath}`);
         }
-        const secretKeyData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+        const secretKeyData = JSON.parse(fs.readFileSync(solanaWalletPath, "utf8"));
         const solanaWallet = Keypair.fromSecretKey(Uint8Array.from(secretKeyData));
         console.log(`[✅] Solana wallet loaded. Address: ${solanaWallet.publicKey.toBase58()}`);
 
@@ -71,13 +71,13 @@ async function main() {
         const suiPath = "/usr/local/bin/walrus";
         const blobId = await sdk.upload({
             file: filePath,
-            wallet: solanaWallet,
-            suiReceiverAddress: suiAddress,
+            wallet: solanaWallet,            // ✅ Pass the raw Keypair
+            suiReceiverAddress: suiAddress, // ✅ Use the Sui address directly
             suiKeypair,
             epochs,
             deletable,
             mnemonicPath,
-            suiPath,  
+            suiPath,  // ✅ Pass the SUI binary path
         });
 
         console.log(`[✅] Upload successful. Blob ID: ${blobId}`);
