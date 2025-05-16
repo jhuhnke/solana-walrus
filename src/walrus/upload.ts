@@ -30,18 +30,37 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         const walrusClient = getWalrusClient();
         const config = getSDKConfig();
         const { wsSol, wal } = config.tokenAddresses[config.network];
-
+        console.log(`[✅] Using WAL coin type: ${wal}`);
         console.log(`[🔑] Sui Sender Address: ${sender}`);
 
-        // ✅ 1. Swap WSOL → WAL
-        console.log(`[🔄] Swapping WSOL to WAL...`);
-        await swapWSOLtoWAL({
-            signer: suiKeypair,
-            wsSolCoinType: wsSol,
-            walCoinType: wal,
-            amount: (walAmount * 1e9).toFixed(0),
-        });
-        console.log(`[✅] Swap complete.`);
+        // ✅ 1. Ensure WAL Balance is Sufficient (Mainnet Only)
+        if (config.network === "mainnet") {
+            console.log(`[🔄] Checking WAL balance...`);
+            const balanceInfo = await suiClient.getBalance({
+                owner: sender,
+                coinType: wal,
+            });
+
+            // Ensure availableWAL is a number for the comparison
+            const availableWAL = Number(balanceInfo.totalBalance || 0);
+            const requiredWAL = walAmount * 1e9;
+            console.log(`[💰] Current WAL balance: ${availableWAL} units. Required: ${requiredWAL} units.`);
+
+            if (availableWAL < requiredWAL) {
+                console.log(`[🔄] Swapping WSOL to WAL...`);
+                await swapWSOLtoWAL({
+                    signer: suiKeypair,
+                    wsSolCoinType: wsSol,
+                    walCoinType: wal,
+                    amount: requiredWAL.toFixed(0),
+                });
+                console.log(`[✅] WSOL -> WAL swap complete.`);
+            } else {
+                console.log(`[✅] Sufficient WAL balance found. Skipping WSOL swap.`);
+            }
+        } else {
+            console.log(`[✅] Skipping WSOL -> WAL swap on testnet.`);
+        }
 
         // ✅ 2. Encode the file
         console.log(`[🗄️] Encoding file...`);
