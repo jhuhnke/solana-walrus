@@ -9,7 +9,7 @@ const COINGECKO_API_URL = "https://api.coingecko.com/api/v3/simple/price";
 /**
  * Fetch the WAL → SOL and SUI → SOL conversion rates using CoinGecko.
  */
-async function fetchConversionRates(): Promise<{ walToSol: number, suiToSol: number }> {
+export async function fetchConversionRates(): Promise<{ walToSol: number, suiToSol: number }> {
     try {
         console.log("[🔄] Fetching WAL → SOL and SUI → SOL conversion rates from CoinGecko...");
 
@@ -60,23 +60,18 @@ export async function getStorageQuote(options: StorageQuoteOptions): Promise<Sto
         const quote = await walrusClient.storageCost(bytes, epochs);
         console.log(`[✅] Raw Quote Response:`, quote);
 
-        // ✅ Fetch conversion rates
-        const { walToSol, suiToSol } = await fetchConversionRates();
+        // ✅ Convert to WAL directly (without double conversion)
+        const storageCostInWAL = Number(quote.storageCost) / 1e9;
+        const writeCostInWAL = Number(quote.writeCost) / 1e9;
+        const totalCostInWAL = storageCostInWAL + writeCostInWAL;
 
-        // ✅ Convert WAL and SUI to SOL
-        const walCostInSol = (Number(quote.storageCost) / 1e9) * walToSol;
-        const writeCostInSol = (Number(quote.writeCost) / 1e9) * walToSol;
-        const suiCostInSol = SUI_TRANSACTION_COST * suiToSol;
-
-        // ✅ Total cost in SOL
-        const totalCostInSol = walCostInSol + writeCostInSol + suiCostInSol;
-        console.log(`[✅] Total cost in SOL: ${totalCostInSol}`);
+        console.log(`[✅] Total cost in WAL: ${totalCostInWAL}`);
 
         return {
-            walCost: walCostInSol,
-            writeCost: writeCostInSol,
-            suiCost: suiCostInSol,
-            totalCost: totalCostInSol,
+            walCost: storageCostInWAL,
+            writeCost: writeCostInWAL,
+            suiCost: SUI_TRANSACTION_COST, // This is in SUI
+            totalCost: totalCostInWAL, // This is in WAL, not SOL
             encodedSize: bytes,
             epochs,
         };
