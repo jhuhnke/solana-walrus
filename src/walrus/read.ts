@@ -1,5 +1,4 @@
 import { getWalrusClient } from "../config";
-import { getSDKConfig } from "../config";
 
 /**
  * Downloads blob contents from Walrus using the shared SuiClient.

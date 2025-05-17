@@ -55,8 +55,8 @@ async function main() {
         const fileSize = fileBuffer.length;
 
         // Extract epochs and deletable flag
-        const epochs = parseInt(process.argv[2], 10) || 8;
-        const deletable = process.argv.includes("--deletable");
+        const epochs = 1;
+        const deletable = true;
 
         // Fetch and print storage quote
         const quote = await sdk.storageQuote(fileSize, epochs);

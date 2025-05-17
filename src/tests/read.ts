@@ -28,7 +28,7 @@ async function main() {
         console.log(`[🔄] Downloading blob with ID: ${blobId}`);
 
         // ✅ Download blob
-        const data = await sdk.download(blobId);
+        const data = await sdk.read(blobId);
         console.log(`[✅] Blob data length: ${data.length}`);
 
         // ✅ Save the file locally for verification (optional)

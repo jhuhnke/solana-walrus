@@ -1,30 +1,25 @@
-// src/walrus/delete.ts
-
-import { getSuiClient, getWalrusClient } from "../config";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { getWalrusClient } from "../config";
 
 /**
- * Deletes a Walrus blob given the on-chain blob object ID.
+ * Delete a blob on Sui.
  */
-export async function deleteBlob(blobObjectId: string, signer: Ed25519Keypair): Promise<void> {
+export async function deleteBlob(blobObjectId: string, suiKeypair: Ed25519Keypair) {
+    const walrusClient = getWalrusClient();
 
     console.log(`[🗑️] Deleting blob: ${blobObjectId}...`);
 
-    const suiClient = getSuiClient(); 
-    const walrusClient = getWalrusClient(); 
+    try {
+        // ✅ Use the built-in delete method from WalrusClient
+        const result = await walrusClient.executeDeleteBlobTransaction({
+            signer: suiKeypair,
+            blobObjectId,
+        });
 
-    // ✅ 1. Create the delete transaction
-    const deleteTx = await walrusClient.deleteBlobTransaction({
-        blobObjectId,
-        owner: signer.getPublicKey().toSuiAddress(),
-    });
-
-    // ✅ 2. Sign and execute the delete transaction
-    const result = await suiClient.signAndExecuteTransaction({
-        signer,
-        transaction: deleteTx,
-        options: { showEffects: true, showObjectChanges: true },
-    });
-
-    console.log(`[✅] Blob deleted successfully. Result:`, result);
+        console.log(`[✅] Blob deleted: ${blobObjectId}`);
+        return result;
+    } catch (error) {
+        console.error("[❌] Failed to delete blob:", error);
+        throw error;
+    }
 }

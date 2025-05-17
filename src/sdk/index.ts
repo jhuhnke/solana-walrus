@@ -1,11 +1,10 @@
 import { configureSDK, getSDKConfig, getSuiClient, getWalrusClient } from "../config";
 import { uploadFile } from "../solana/upload";
 import { deleteFile } from "../solana/delete";
-import { getBlobData } from "../walrus/download";
+import { getBlobData } from "../walrus/read";
 import { getBlobAttributesByObjectId } from "../walrus/attributes";
 import { getStorageQuote } from "../utils/encoding";
 import { UploadOptions } from "../types";
-import { PublicKey } from "@solana/web3.js";
 
 // Export the configureSDK function
 export { configureSDK, getSDKConfig, getSuiClient, getWalrusClient };
@@ -32,14 +31,18 @@ export class WalrusSolanaSDK {
     /**
      * Delete a blob from Walrus using its object ID.
      */
-    async delete(blobObjectId: string, wallet: { publicKey: PublicKey }): Promise<void> {
-        return deleteFile({ blobObjectId, wallet });
+    async delete(blobObjectId: string, walletPath: string, mnemonicPath: string): Promise<void> {
+        return deleteFile({
+            blobObjectId,
+            walletPath,
+            mnemonicPath,
+        });
     }
 
     /**
-     * Download a file by blob ID.
+     * Read a file by blob ID.
      */
-    async download(blobId: string): Promise<Uint8Array> {
+    async read(blobId: string): Promise<Uint8Array> {
         return getBlobData(blobId);
     }
 

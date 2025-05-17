@@ -1,45 +1,48 @@
-import { PublicKey, Connection } from "@solana/web3.js";
+import { Connection, Keypair } from "@solana/web3.js";
 import { deleteBlob } from "../walrus/delete";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { getSDKConfig } from "../config";
+import { getCachedOrCreateSuiKeypair } from "../wallets/deriveSuiKeypair";
 import fs from "fs";
 
 /**
- * Load the Sui keypair from the mnemonic in import.json.
+ * Load Solana wallet from the provided path.
  */
-function loadSuiKeypairFromMnemonic(): Ed25519Keypair {
-    const importPath = "./import.json";  
-    if (!fs.existsSync(importPath)) {
-        throw new Error(`[❌] import.json not found at ${importPath}`);
+function loadSolanaWallet(walletPath: string): Keypair {
+    if (!fs.existsSync(walletPath)) {
+        throw new Error(`[❌] Solana wallet file not found at ${walletPath}`);
     }
 
-    const importData = JSON.parse(fs.readFileSync(importPath, "utf-8"));
-    if (!importData.mnemonic) {
-        throw new Error(`[❌] Invalid import.json file. 'mnemonic' field not found.`);
-    }
-
-    return Ed25519Keypair.deriveKeypair(importData.mnemonic);
+    const secretKeyData = JSON.parse(fs.readFileSync(walletPath, "utf8"));
+    return Keypair.fromSecretKey(Uint8Array.from(secretKeyData));
 }
 
 /**
- * Delete a Walrus blob via a Solana user (uses mnemonic-based Sui keypair).
+ * Delete a Walrus blob using a Solana wallet and Sui keypair.
  */
 export async function deleteFile(options: {
     blobObjectId: string;
-    wallet: {
-        publicKey: PublicKey;
-    };
+    walletPath: string;
+    mnemonicPath: string;
     connection?: Connection;
 }): Promise<void> {
-    const { blobObjectId } = options;
+    const { blobObjectId, walletPath, mnemonicPath, connection } = options;
 
-    const config = getSDKConfig();
+    // ✅ Load the Solana wallet
+    const solanaWallet = loadSolanaWallet(walletPath);
+    console.log(`[🔑] Loaded Solana wallet: ${solanaWallet.publicKey.toBase58()}`);
 
-    // 1. Load the Sui keypair from the mnemonic
-    const suiKeypair = loadSuiKeypairFromMnemonic();
+    // ✅ Load or derive the Sui keypair
+    const suiKeypair = getCachedOrCreateSuiKeypair(solanaWallet.publicKey, mnemonicPath);
     console.log(`[🔑] Loaded Sui keypair: ${suiKeypair.getPublicKey().toSuiAddress()}`);
 
-    // 2. Call the Sui-side deletion logic
-    await deleteBlob(blobObjectId, suiKeypair);
-    console.log(`[🗑️] Deleted blob: ${blobObjectId}`);
+    // ✅ Use provided connection or default
+    const solanaConnection = connection || new Connection("https://api.devnet.solana.com", "confirmed");
+
+    // ✅ Call the Sui-side deletion logic
+    try {
+        await deleteBlob(blobObjectId, suiKeypair);
+        console.log(`[🗑️] Deleted blob: ${blobObjectId}`);
+    } catch (error) {
+        console.error(`[❌] Failed to delete blob: ${error.message}`);
+        throw error;
+    }
 }
