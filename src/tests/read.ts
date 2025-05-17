@@ -24,7 +24,7 @@ async function main() {
         });
 
         // ✅ Use the provided blob ID
-        const blobId = "0xdb03b1128d1fb9269c7c509824b4710dcd578441872a74c154d7863c41c3e38d";
+        const blobId = "QHXIWioF1iNYisZLQhch6YKDYciQcP1HAI4R_M3nbvA";
         console.log(`[🔄] Downloading blob with ID: ${blobId}`);
 
         // ✅ Download blob

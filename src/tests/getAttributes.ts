@@ -1,12 +1,10 @@
 import { WalrusSolanaSDK } from "../sdk";
-import fs from "fs";
-import path from "path";
 
 async function main() {
     try {
         console.log("[🛠️] Configuring SDK...");
 
-        // ✅ Configure SDK (Initialize Clients)
+        // Configure SDK (Initialize Clients)
         const sdk = new WalrusSolanaSDK({
             network: "testnet",
             suiUrl: "https://fullnode.testnet.sui.io:443",
@@ -23,11 +21,12 @@ async function main() {
             },
         });
 
-        // ✅ Use the provided blob ID
-        const blobObjectId = "0xdb03b1128d1fb9269c7c509824b4710dcd578441872a74c154d7863c41c3e38d";
+        // Use the provided blob ID
+        const blobObjectId = "0xd91a48e88584a8dba0b5a8ed1a7ca42865972f752ef4b27435adee130f3a0e1b";
+
         console.log(`[🔎] Fetching attributes for blob ID: ${blobObjectId}`);
 
-        // ✅ Fetch attributes
+        // Fetch attributes
         const attributes = await sdk.getAttributes(blobObjectId);
         console.log("[✅] Blob attributes:", attributes);
 
