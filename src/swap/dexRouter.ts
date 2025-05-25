@@ -1,9 +1,10 @@
-import { Aftermath } from 'aftermath-ts-sdk';
-import { SuiClient } from '@mysten/sui/client';
-import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
+import { Aftermath } from "aftermath-ts-sdk";
+import { SuiClient } from "@mysten/sui/client";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
 /**
- * Swap WSOL to WAL using Aftermath Smart Order Router on MAINNET
+ * Swap WSOL to WAL using Aftermath Smart Order Router on MAINNET.
+ * Aftermath SDK automatically handles coin selection, merging, and transfer.
  */
 export async function swapWSOLtoWAL({
 	signer,
@@ -14,45 +15,52 @@ export async function swapWSOLtoWAL({
 	signer: Ed25519Keypair;
 	wsSolCoinType: string;
 	walCoinType: string;
-	amount: string; // base units (e.g. 1e9 for 1 SOL)
+	amount: string;
 }): Promise<string> {
 	const sender = signer.getPublicKey().toSuiAddress();
+	console.log(`[🔑] Sender: ${sender}`);
+	console.log(`[🔄] Swapping exactly ${amount} WSOL → WAL`);
 
-	// ✅ Initialize Aftermath SDK and Router
-	const afSdk = new Aftermath('MAINNET');
-	await afSdk.init();
-	const router = afSdk.Router();
+	try {
+		const suiClient = new SuiClient({ url: "https://fullnode.mainnet.sui.io:443" });
 
-	// ✅ Get trade route from WSOL → WAL
-	const completeRoute = await router.getCompleteTradeRouteGivenAmountIn({
-		coinInType: wsSolCoinType,
-		coinOutType: walCoinType,
-		coinInAmount: BigInt(amount),
-	});
+		const sdk = new Aftermath("MAINNET");
+		await sdk.init();
+		const router = sdk.Router();
 
-	if (!completeRoute) {
-		throw new Error('❌ No viable trade route found');
+		// ✅ Get route
+		const route = await router.getCompleteTradeRouteGivenAmountIn({
+			coinInType: wsSolCoinType,
+			coinOutType: walCoinType,
+			coinInAmount: BigInt(amount),
+		});
+		if (!route) throw new Error("No viable trade route found");
+
+		// ✅ Let Aftermath build full transaction (including coin selection)
+		const tx = await router.getTransactionForCompleteTradeRoute({
+			walletAddress: sender,
+			completeRoute: route,
+			slippage: 0.02,
+		});
+
+		// ✅ Execute
+		const result = await suiClient.signAndExecuteTransaction({
+			signer,
+			transaction: tx,
+			options: { showEffects: true, showInput: true },
+		});
+
+		if (result.effects?.status.status !== "success") {
+			console.error("[❌] Swap failed:", result.effects?.status);
+			throw new Error("Swap transaction failed");
+		}
+
+		console.log(`[✅] Swap succeeded! TX digest: ${result.digest}`);
+		return result.digest;
+
+	} catch (err: any) {
+		const msg = err?.message || err?.toString();
+		console.error("[❌] Error during swapWSOLtoWAL:", msg);
+		throw new Error(`Swap failed: ${msg}`);
 	}
-
-	// ✅ Build transaction from route
-	const tx = await router.getTransactionForCompleteTradeRoute({
-		walletAddress: sender,
-		completeRoute,
-		slippage: 0.01, // 1% slippage
-	});
-
-	// ✅ Execute transaction
-	const suiClient = new SuiClient({ url: 'https://fullnode.mainnet.sui.io' });
-	const result = await suiClient.signAndExecuteTransaction({
-		signer,
-		transaction: tx,
-		options: { showEffects: true },
-	});
-
-	if (result.effects?.status.status !== 'success') {
-		throw new Error('❌ Swap transaction failed');
-	}
-
-	console.log('✅ Swap succeeded! Transaction digest:', result.digest);
-	return result.digest;
 }

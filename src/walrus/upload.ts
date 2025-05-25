@@ -1,6 +1,5 @@
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { getSuiClient, getWalrusClient, getSDKConfig } from "../config";
-import { swapWSOLtoWAL } from "../swap/dexRouter";
 
 export interface FinalizeUploadResult {
     blobId: string;
@@ -13,7 +12,6 @@ export interface FinalizeUploadOptions {
     fileBytes: Uint8Array;
     deletable?: boolean;
     epochs?: number;
-    walAmount?: number;
 }
 
 /**
@@ -21,53 +19,26 @@ export interface FinalizeUploadOptions {
  */
 export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promise<FinalizeUploadResult> {
     try {
-        // Extract and validate inputs
-        const { suiKeypair, fileBytes, deletable = true, epochs = 3, walAmount = 0.1 } = options;
+        const { suiKeypair, fileBytes, deletable = true, epochs = 3 } = options;
         const sender = suiKeypair.getPublicKey().toSuiAddress();
 
-        // Fetch global clients and config
         const suiClient = getSuiClient();
         const walrusClient = getWalrusClient();
         const config = getSDKConfig();
-        const { wsSol, wal } = config.tokenAddresses[config.network];
+        const { wal } = config.tokenAddresses[config.network];
+
         console.log(`[✅] Using WAL coin type: ${wal}`);
         console.log(`[🔑] Sui Sender Address: ${sender}`);
 
-        // 1. Ensure WAL Balance is Sufficient (Mainnet Only)
-        if (config.network === "mainnet") {
-            console.log(`[🔄] Checking WAL balance...`);
-            const balanceInfo = await suiClient.getBalance({
-                owner: sender,
-                coinType: wal,
-            });
+        // ✅ Skip WAL balance enforcement — assume swap already occurred
+        console.log(`[ℹ️] Skipping WSOL → WAL fallback. Assuming WAL balance is already handled.`);
 
-            // Ensure availableWAL is a number for the comparison
-            const availableWAL = Number(balanceInfo.totalBalance || 0);
-            const requiredWAL = walAmount * 1e9;
-            console.log(`[💰] Current WAL balance: ${availableWAL} units. Required: ${requiredWAL} units.`);
-
-            if (availableWAL < requiredWAL) {
-                console.log(`[🔄] Swapping WSOL to WAL...`);
-                await swapWSOLtoWAL({
-                    signer: suiKeypair,
-                    wsSolCoinType: wsSol,
-                    walCoinType: wal,
-                    amount: requiredWAL.toFixed(0),
-                });
-                console.log(`[✅] WSOL -> WAL swap complete.`);
-            } else {
-                console.log(`[✅] Sufficient WAL balance found. Skipping WSOL swap.`);
-            }
-        } else {
-            console.log(`[✅] Skipping WSOL -> WAL swap on testnet.`);
-        }
-
-        // 2. Encode the file
+        // 1. Encode the file
         console.log(`[🗄️] Encoding file...`);
         const encoded = await walrusClient.encodeBlob(fileBytes);
         console.log(`[✅] Encoding complete. Blob ID: ${encoded.blobId}`);
 
-        // 3. Register the blob
+        // 2. Register the blob
         console.log(`[📝] Registering blob with ID: ${encoded.blobId}...`);
         const registerTx = await walrusClient.registerBlobTransaction({
             blobId: encoded.blobId,
@@ -85,7 +56,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob registration complete. Result:`, registerResult);
 
-        // 4. Locate the blob object
+        // 3. Locate the blob object
         console.log(`[🔍] Locating blob object...`);
         const blobType = await walrusClient.getBlobType();
 
@@ -99,7 +70,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
 
         console.log(`[✅] Blob object found. Object ID: ${blobObject.objectId}`);
 
-        // 5. Upload encoded blob data to nodes
+        // 4. Upload encoded blob data to nodes
         console.log(`[🔄] Writing encoded blob to nodes...`);
         const confirmations = await walrusClient.writeEncodedBlobToNodes({
             blobId: encoded.blobId,
@@ -110,7 +81,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob written to nodes. Confirmations:`, confirmations);
 
-        // 6. Certify the blob
+        // 5. Certify the blob
         console.log(`[🔒] Certifying blob...`);
         const certifyTx = await walrusClient.certifyBlobTransaction({
             blobId: encoded.blobId,
@@ -126,7 +97,6 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
         console.log(`[✅] Blob certification complete. Result:`, certifyResult);
 
-        // 7. Verify certification success
         if (certifyResult.effects?.status.status !== "success") {
             throw new Error("[❌] Certify blob transaction failed");
         }

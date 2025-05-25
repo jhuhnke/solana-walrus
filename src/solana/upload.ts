@@ -67,16 +67,13 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
     console.log(`[📈] Mainnet buffer applied. Adjusted WAL estimate: ${estimatedWAL.toFixed(9)} WAL`);
   }
 
-  // ✅ Add 2% protocol fee
   const totalWALWithFees = estimatedWAL * 1.02;
   console.log(`[✅] Total WAL after 2% fees: ${totalWALWithFees.toFixed(9)} WAL`);
 
-  // ✅ Convert WAL → SOL using CoinGecko
   const { walToSol } = await fetchConversionRates();
   const totalSOL = totalWALWithFees * walToSol;
   console.log(`[💱] Converted WAL → SOL: ${totalSOL.toFixed(9)} SOL`);
 
-  // ✅ Transfer SOL to treasury (converted from WAL)
   const { remainingSOL } = await transferProtocolFee({
     connection: solanaConnection,
     payer: wallet,
@@ -84,7 +81,6 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   });
   console.log(`[✅] Remaining SOL after fee transfer: ${remainingSOL} SOL`);
 
-  // ✅ Bridge SOL to SUI via Wormhole
   await createAndSendWormholeMsg({
     fileHash,
     fileSize,
@@ -96,18 +92,17 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
   });
   console.log(`[✅] Wormhole message sent successfully.`);
 
-  // ✅ Attempt WAL swap on SUI after bridging
-  const estimatedWALInLamports = Math.floor(estimatedWAL * 1e9);
+  // ✅ Swap WSOL → WAL using the exact bridged amount
+  const bridgedWSOLInLamports = Math.floor(remainingSOL * 1e9);
   const gasFree = await isAstrosGasFreeSwapAvailable(
     wal,
-    estimatedWALInLamports,
+    bridgedWSOLInLamports,
     suiReceiver,
     config.network,
     mnemonicPath
   );
   console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
 
-  // ✅ Finalize upload
   const result = await finalizeUploadOnSui({
     suiKeypair,
     fileBytes,
