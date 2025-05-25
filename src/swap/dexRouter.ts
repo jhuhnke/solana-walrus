@@ -1,11 +1,9 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { Transaction } from '@mysten/sui/transactions';
+import { Aftermath } from 'aftermath-ts-sdk';
+import { SuiClient } from '@mysten/sui/client';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
-const ASTROS_API = 'https://aggregator.astroswap.org/route';
-
 /**
- * Swap WSOL to WAL using Astros Aggregator
+ * Swap WSOL to WAL using Aftermath Smart Order Router on MAINNET
  */
 export async function swapWSOLtoWAL({
 	signer,
@@ -16,33 +14,43 @@ export async function swapWSOLtoWAL({
 	signer: Ed25519Keypair;
 	wsSolCoinType: string;
 	walCoinType: string;
-	amount: string; // in base units, e.g. lamports (1e9 = 1 SOL)
+	amount: string; // base units (e.g. 1e9 for 1 SOL)
 }): Promise<string> {
-	const suiClient = new SuiClient({ url: getFullnodeUrl('testnet'), network: 'testnet' });
 	const sender = signer.getPublicKey().toSuiAddress();
 
-	// 1. Call Astros Aggregator API to get swap route
-	const url = `${ASTROS_API}?fromCoinType=${wsSolCoinType}&toCoinType=${walCoinType}&amount=${amount}&sender=${sender}`;
+	// ✅ Initialize Aftermath SDK and Router
+	const afSdk = new Aftermath('MAINNET');
+	await afSdk.init();
+	const router = afSdk.Router();
 
-	const res = await fetch(url);
-	if (!res.ok) throw new Error('Astros API call failed');
-	const routeData = await res.json();
+	// ✅ Get trade route from WSOL → WAL
+	const completeRoute = await router.getCompleteTradeRouteGivenAmountIn({
+		coinInType: wsSolCoinType,
+		coinOutType: walCoinType,
+		coinInAmount: BigInt(amount),
+	});
 
-	// 2. Deserialize transaction block from aggregator response
-	const txBytes = new Uint8Array(routeData.txBytes.data);
-	const tx = Transaction.from(txBytes);
+	if (!completeRoute) {
+		throw new Error('❌ No viable trade route found');
+	}
 
-	// 3. Sign and execute the swap transaction
+	// ✅ Build transaction from route
+	const tx = await router.getTransactionForCompleteTradeRoute({
+		walletAddress: sender,
+		completeRoute,
+		slippage: 0.01, // 1% slippage
+	});
+
+	// ✅ Execute transaction
+	const suiClient = new SuiClient({ url: 'https://fullnode.mainnet.sui.io' });
 	const result = await suiClient.signAndExecuteTransaction({
-		transaction: tx,
 		signer,
-		options: {
-			showEffects: true,
-		},
+		transaction: tx,
+		options: { showEffects: true },
 	});
 
 	if (result.effects?.status.status !== 'success') {
-		throw new Error('Swap failed on Sui');
+		throw new Error('❌ Swap transaction failed');
 	}
 
 	console.log('✅ Swap succeeded! Transaction digest:', result.digest);

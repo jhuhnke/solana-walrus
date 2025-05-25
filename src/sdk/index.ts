@@ -49,9 +49,9 @@ export class WalrusSolanaSDK {
     /**
      * Read on-chain blob attributes.
      */
-    async getAttributes(blobObjectId: string): Promise<Record<string, string>> {
-        return getBlobAttributesByObjectId(blobObjectId);
-    }
+    // async getAttributes(blobObjectId: string): Promise<Record<string, string>> {
+    //     return getBlobAttributesByObjectId(blobObjectId);
+    // }
 
     /**
      * Get on-chain storage price in SOL. 

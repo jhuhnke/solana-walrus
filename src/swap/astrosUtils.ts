@@ -1,11 +1,13 @@
 import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
 import { getSuiClient } from "../config";
 import { fetchConversionRates } from "../utils/encoding";
+import { swapWSOLtoWAL } from "./dexRouter";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import fs from "fs";
 import { execSync } from "child_process";
 
 /**
- * Checks if a gas-free WAL swap is possible.
+ * Attempts a gas-free swap of WSOL → WAL on mainnet or SUI → WAL on testnet.
  */
 export async function isAstrosGasFreeSwapAvailable(
     walCoinType: string,
@@ -13,16 +15,59 @@ export async function isAstrosGasFreeSwapAvailable(
     sender: string,
     network: "testnet" | "mainnet",
     mnemonicPath: string,
-    suiCliPath?: string  
+    suiCliPath?: string
 ): Promise<boolean> {
     try {
-        // ✅ Validate network
-        if (network !== "testnet") {
-            console.log("[⚠️] Only testnet is supported for SUI -> WAL swaps.");
-            return false;
+        const suiClient = getSuiClient();
+
+        // ✅ Testnet Flow (SUI -> WAL via CLI)
+        if (network === "testnet") {
+            const balances = await suiClient.getBalance({
+                owner: sender,
+                coinType: "0x2::sui::SUI",
+            });
+
+            const currentBalance = Number(balances.totalBalance || "0");
+            console.log(`[🪙] Current SUI balance: ${(currentBalance / 1e9).toFixed(4)} SUI`);
+
+            if (currentBalance < 1e9) {
+                console.log(`[🚰] Funding testnet account: ${sender}...`);
+                const host = getFaucetHost("testnet");
+                const faucetResponse = await requestSuiFromFaucetV2({ host, recipient: sender });
+                console.log(`[✅] Faucet response:`, faucetResponse);
+            } else {
+                console.log("[✅] Account has sufficient SUI. Skipping faucet.");
+            }
+
+            const { walToSol, suiToSol } = await fetchConversionRates();
+            const estimatedSUI = amountInWAL * (walToSol / suiToSol);
+            const estimatedSUIInMist = Math.floor(estimatedSUI).toString();
+            console.log(`[💱] Estimated SUI for ${amountInWAL} WAL: ${estimatedSUIInMist} MIST`);
+
+            const walrusPath = suiCliPath || "/usr/local/bin/walrus";
+            if (!fs.existsSync(walrusPath)) {
+                throw new Error(`[❌] Walrus CLI not found at ${walrusPath}`);
+            }
+
+            const cmd = `${walrusPath} get-wal --amount ${estimatedSUIInMist}`;
+            console.log(`[📝] Swap command: ${cmd}`);
+
+            const output = execSync(cmd, {
+                stdio: "pipe",
+                env: process.env,
+                shell: "/bin/bash",
+                encoding: "utf-8",
+            });
+
+            console.log(`[✅] SUI → WAL swap successful:`, output);
+            return true;
         }
 
-        // ✅ Validate mnemonic file
+        // ✅ Mainnet Flow (WSOL -> WAL via Aftermath)
+        const estimatedWAL = amountInWAL * 1.05; // 5% buffer
+        console.log(`[📈] Estimating mainnet swap for ${estimatedWAL.toFixed(9)} WAL`);
+
+        // ✅ Derive Sui keypair directly from mnemonic
         if (!fs.existsSync(mnemonicPath)) {
             throw new Error(`[❌] Mnemonic file not found at ${mnemonicPath}`);
         }
@@ -33,61 +78,23 @@ export async function isAstrosGasFreeSwapAvailable(
             throw new Error("[❌] Mnemonic file is missing the 'mnemonic' key");
         }
 
-        // ✅ Check SUI balance
-        const suiClient = getSuiClient();
-        const balances = await suiClient.getBalance({
-            owner: sender,
-            coinType: "0x2::sui::SUI",
+        const suiKeypair = Ed25519Keypair.deriveKeypair(mnemonic);
+
+        const config = {
+            wsSol: "0x2::coin::COIN<0x5::wsol::WSOL>",
+            wal: walCoinType,
+        };
+
+        const amountInLamports = Math.floor(estimatedWAL * 1e9).toString();
+
+        const txDigest = await swapWSOLtoWAL({
+            signer: suiKeypair,
+            wsSolCoinType: config.wsSol,
+            walCoinType: config.wal,
+            amount: amountInLamports,
         });
 
-        const currentBalance = Number(balances.totalBalance || "0");
-        console.log(`[🪙] Current SUI balance: ${(currentBalance / 1e9).toFixed(4)} SUI`);
-
-        // Ensure account has enough SUI for the swap
-        const minimumSUI = 1 * 1e9;  // 1 SUI (in lamports)
-        if (currentBalance < minimumSUI) {
-            console.log(`[🚰] Funding testnet account: ${sender}...`);
-            const host = getFaucetHost("testnet");
-            const faucetResponse = await requestSuiFromFaucetV2({
-                host,
-                recipient: sender,
-            });
-            console.log(`[✅] Testnet faucet response:`, faucetResponse);
-        } else {
-            console.log("[✅] Account has sufficient SUI. Skipping faucet.");
-        }
-
-        // ✅ Fetch WAL → SOL and SUI → SOL conversion rates
-        const { walToSol, suiToSol } = await fetchConversionRates();
-
-        // ✅ Convert WAL to SUI for the swap
-        const estimatedSUI = amountInWAL * (walToSol / suiToSol);
-        console.log(`[💱] Estimated SUI for ${amountInWAL / 10e9} WAL: ${estimatedSUI / 10e9} SUI`);
-
-        // ✅ Convert to Mist for the CLI command
-        const estimatedSUIInMist = Math.floor(estimatedSUI).toString();
-        console.log(`[📝] Amount in Mist: ${estimatedSUIInMist}`);
-
-        // ✅ Validate WAL swap command
-        const defaultWalrusPath = "/usr/local/bin/walrus";
-        const walrusPath = suiCliPath || defaultWalrusPath;
-
-        if (!fs.existsSync(walrusPath) || !fs.statSync(walrusPath).isFile()) {
-            throw new Error(`[❌] Walrus CLI not found at ${walrusPath}`);
-        }
-
-        // ✅ Run the WAL swap command
-        const swapCommand = `${walrusPath} get-wal --amount ${estimatedSUIInMist}`;
-        console.log(`[📝] Swap command: ${swapCommand}`);
-
-        const swapOutput = execSync(swapCommand, {
-            stdio: "pipe",
-            env: process.env,
-            shell: "/bin/bash",
-            encoding: "utf-8",
-        });
-
-        console.log(`[✅] SUI -> WAL swap successful:`, swapOutput);
+        console.log(`[✅] Aftermath swap complete. TX: ${txDigest}`);
         return true;
 
     } catch (error) {

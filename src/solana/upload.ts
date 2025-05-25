@@ -1,23 +1,20 @@
 import { getSDKConfig } from "../config";
-import { getStorageQuote, hashFile } from "../utils/encoding";
+import { getStorageQuote, hashFile, fetchConversionRates } from "../utils/encoding";
 import { createAndSendWormholeMsg } from "../bridge/wormhole";
 import { transferProtocolFee } from "../bridge/treasury";
 import { isAstrosGasFreeSwapAvailable } from "../swap/astrosUtils";
 import { finalizeUploadOnSui } from "../walrus/upload";
 import { getCachedOrCreateSuiKeypair } from "../wallets/deriveSuiKeypair";
 import { UploadOptions } from "../types";
-import {
-  Connection,
-  Keypair
-} from "@solana/web3.js";
+import { Connection, Keypair } from "@solana/web3.js";
 import fs from "fs";
 
-// 🔧 Use your custom RPC for faster blockhash lookups
-const CUSTOM_RPC_URL = 'https://api.devnet.solana.com';
+const CUSTOM_RPC_URL_DEVNET = "https://api.devnet.solana.com";
+const CUSTOM_RPC_URL_MAINNET = "https://api.mainnet-beta.solana.com";
 
-// 🔄 Get a connection to your custom RPC
-function getCustomConnection(): Connection {
-  return new Connection(CUSTOM_RPC_URL, "confirmed");
+function getCustomConnection(network: string): Connection {
+  const url = network === "mainnet" ? CUSTOM_RPC_URL_MAINNET : CUSTOM_RPC_URL_DEVNET;
+  return new Connection(url, "confirmed");
 }
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
@@ -29,82 +26,88 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
     epochs,
     deletable,
     connection,
-    mnemonicPath,  // ✅ Corrected extraction
+    mnemonicPath,
   } = options;
 
   console.log("[📤] Starting file upload...");
 
-  // ✅ Validate wallet
   if (!(wallet instanceof Keypair)) {
     throw new Error("[❌] Expected a Solana Keypair for the payer.");
   }
 
-  // ✅ Validate file path
   if (typeof file !== "string" || !fs.existsSync(file)) {
-    throw new Error(`[❌] Expected a valid file path string, but got ${typeof file}: ${file}`);
+    throw new Error(`[❌] Invalid file path: ${file}`);
   }
 
-  // ✅ Read the file as Uint8Array
   const fileBytes = fs.readFileSync(file);
   const fileHash = await hashFile(fileBytes);
   const fileSize = fileBytes.length;
   console.log(`[✅] File size: ${fileSize} bytes, Hash: ${fileHash}`);
 
-  // ✅ Use or generate Sui keypair
-  const suiKeypair = userProvidedSuiKeypair || getCachedOrCreateSuiKeypair(wallet.publicKey, "./import.json");
-  const suiReceiver = suiReceiverAddress || suiKeypair.getPublicKey().toSuiAddress();
+  const suiKeypair =
+    userProvidedSuiKeypair || getCachedOrCreateSuiKeypair(wallet.publicKey, "./import.json");
+  const suiReceiver =
+    suiReceiverAddress || suiKeypair.getPublicKey().toSuiAddress();
   console.log(`[✅] Sui keypair resolved. Address: ${suiReceiver}`);
 
-  // ✅ Use provided connection or default
-  const solanaConnection = connection || getCustomConnection();
-
-  // ✅ Fetch storage quote in WAL
-  const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
-  const estimatedWAL = quote.totalCost;  // This is in WAL
-  console.log(`[✅] Storage quote received. Total cost: ${estimatedWAL} WAL`);
-
-  // ✅ Get token info
   const config = getSDKConfig();
-  const { wsSol, wal } = config.tokenAddresses[config.network];
+  const { wal } = config.tokenAddresses[config.network];
+  const solanaConnection = connection || getCustomConnection(config.network);
 
-  // ✅ Check Astros gas sponsorship
   if (!mnemonicPath) {
-    throw new Error("[❌] Missing required mnemonic path for gas-free swap check.");
+    throw new Error("[❌] Missing required mnemonic path.");
   }
 
-  const estimatedWALInLamports = Math.floor(estimatedWAL * 1e9); 
-  const gasFree = await isAstrosGasFreeSwapAvailable(
-      wal,
-      estimatedWALInLamports,
-      suiReceiver,
-      config.network,
-      mnemonicPath
-  );
-  const protocolFeePercent = gasFree ? 0.01 : 0.02;
-  const totalWALWithFees = estimatedWAL * (1 + protocolFeePercent);
-  console.log(`[✅] Total WAL after fees: ${totalWALWithFees.toFixed(9)} WAL`);
+  const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
+  let estimatedWAL = quote.totalCost;
+  console.log(`[✅] Storage quote received. Total cost: ${estimatedWAL} WAL`);
 
-  // ✅ Transfer protocol fee to treasury
+  if (config.network === "mainnet") {
+    estimatedWAL *= 1.05;
+    console.log(`[📈] Mainnet buffer applied. Adjusted WAL estimate: ${estimatedWAL.toFixed(9)} WAL`);
+  }
+
+  // ✅ Add 2% protocol fee
+  const totalWALWithFees = estimatedWAL * 1.02;
+  console.log(`[✅] Total WAL after 2% fees: ${totalWALWithFees.toFixed(9)} WAL`);
+
+  // ✅ Convert WAL → SOL using CoinGecko
+  const { walToSol } = await fetchConversionRates();
+  const totalSOL = totalWALWithFees * walToSol;
+  console.log(`[💱] Converted WAL → SOL: ${totalSOL.toFixed(9)} SOL`);
+
+  // ✅ Transfer SOL to treasury (converted from WAL)
   const { remainingSOL } = await transferProtocolFee({
     connection: solanaConnection,
     payer: wallet,
-    amountSOL: totalWALWithFees,  // This should be in WAL, not SOL
+    amountSOL: totalSOL,
   });
-  console.log(`[✅] Remaining WAL after fee transfer: ${remainingSOL} WAL`);
+  console.log(`[✅] Remaining SOL after fee transfer: ${remainingSOL} SOL`);
 
-  // ✅ Send the wormhole message
+  // ✅ Bridge SOL to SUI via Wormhole
   await createAndSendWormholeMsg({
-      fileHash,
-      fileSize,
-      amountSOL: remainingSOL,
-      wallet,  
-      suiReceiver,
-      suiKeypair,
-      mnemonicPath,
+    fileHash,
+    fileSize,
+    amountSOL: remainingSOL,
+    wallet,
+    suiReceiver,
+    suiKeypair,
+    mnemonicPath,
   });
   console.log(`[✅] Wormhole message sent successfully.`);
 
-  // ✅ Finalize the upload on Sui
+  // ✅ Attempt WAL swap on SUI after bridging
+  const estimatedWALInLamports = Math.floor(estimatedWAL * 1e9);
+  const gasFree = await isAstrosGasFreeSwapAvailable(
+    wal,
+    estimatedWALInLamports,
+    suiReceiver,
+    config.network,
+    mnemonicPath
+  );
+  console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
+
+  // ✅ Finalize upload
   const result = await finalizeUploadOnSui({
     suiKeypair,
     fileBytes,
@@ -112,7 +115,6 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
     deletable,
   });
 
-  // ✅ Return blob ID
   console.log(`[✅] Blob uploaded successfully. Blob ID: ${result.blobId}`);
   return result.blobId;
 }

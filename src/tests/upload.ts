@@ -10,17 +10,17 @@ async function main() {
 
         // ✅ Configure SDK (Initialize Clients)
         const sdk = new WalrusSolanaSDK({
-            network: "testnet",
-            suiUrl: "https://fullnode.testnet.sui.io:443",
-            solanaRpcUrl: "https://api.devnet.solana.com",
+            network: "mainnet", // or "mainnet"
+            suiUrl: "https://fullnode.mainnet.sui.io:443",
+            solanaRpcUrl: "https://mainnet.helius-rpc.com/?api-key=2b68b687-9aaf-445a-847f-dd28e45cafef",
             tokenAddresses: {
-                mainnet: {
-                    wsSol: "So11111111111111111111111111111111111111112",
-                    wal: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
-                },
                 testnet: {
                     wsSol: "So11111111111111111111111111111111111111112",
                     wal: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
+                },
+                mainnet: {
+                    wsSol: "So11111111111111111111111111111111111111112",
+                    wal: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
                 },
             },
         });
