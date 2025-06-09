@@ -1,4 +1,4 @@
-# 🐘 Solana-Walrus SDK
+# Solana-Walrus SDK
 
 A developer SDK for uploading, downloading, and managing files on [Walrus Storage](https://mystenlabs.com/projects/walrus) — designed specifically for **Solana-native dApps**.
 
@@ -6,7 +6,7 @@ Built using the [Mysten Labs Walrus SDK](https://sdk.mystenlabs.com/walrus) and 
 
 ---
 
-## ✨ Features
+## Features
 
 - 📤 Upload files to Walrus from a Solana wallet  
 - 📥 Download blobs using just a `blobId`  
@@ -17,7 +17,7 @@ Built using the [Mysten Labs Walrus SDK](https://sdk.mystenlabs.com/walrus) and 
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 npm install solana-walrus
@@ -25,7 +25,7 @@ npm install solana-walrus
 
 ---
 
-## 🛠 Usage
+## Usage
 
 ### 1. Configure the SDK
 
@@ -90,7 +90,7 @@ console.log(attrs); // { contentType: "text/plain", ... }
 
 ---
 
-## 🧪 Test Scripts
+## Test Scripts
 
 Located in the `tests/` folder:
 
@@ -105,7 +105,7 @@ Located in the `tests/` folder:
 
 ---
 
-## 🪙 SUI Wallet Setup
+## SUI Wallet Setup
 
 ### 1. Import via Mnemonic
 
@@ -120,7 +120,7 @@ Located in the `tests/` folder:
 
 ---
 
-## 🧠 Developer Notes
+## Developer Notes
 
 ### Testnet
 
@@ -134,7 +134,7 @@ Located in the `tests/` folder:
 
 ---
 
-## 🧑‍💻 Contributing
+## Contributing
 
 1. Create a new branch:
    ```bash
