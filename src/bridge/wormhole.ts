@@ -20,12 +20,10 @@ import {
 } from "@wormhole-foundation/sdk";
 import solana from "@wormhole-foundation/sdk/solana";
 import sui from "@wormhole-foundation/sdk/sui";
-
+import { getSuiClient } from "../config";
 import { getSolanaSigner } from "../wallets/solana";
-import { getSuiSigner } from "../wallets/sui";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import { getSDKConfig, getDefaultSolanaRpc } from "../config";
-import fs from "fs";
 
 function toWormholeNetwork(net: string): "Mainnet" | "Testnet" {
     return net === "mainnet" ? "Mainnet" : "Testnet";
@@ -37,10 +35,8 @@ export async function createAndSendWormholeMsg(params: {
     amountSOL: number;
     wallet: Keypair;
     suiReceiver?: string;
-    suiKeypair: Ed25519Keypair;
-    mnemonicPath: string;
 }): Promise<string> {
-    const { amountSOL, wallet, mnemonicPath } = params;
+    const { amountSOL, wallet } = params;
 
     const config = getSDKConfig();
     const rpc = config.solanaRpcUrl || getDefaultSolanaRpc(config.network);
@@ -49,10 +45,10 @@ export async function createAndSendWormholeMsg(params: {
     const wh = await wormhole(toWormholeNetwork(config.network), [solana, sui], {
         chains: {
             Sui: {
-                rpc: "https://fullnode.mainnet.sui.io:443",
+                rpc: config.suiUrl || "https://fullnode.mainnet.sui.io:443",
                 contracts: {
-                    coreBridge: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c", ///"0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790", 
-                    tokenBridge: "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9", //"0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da",
+                    coreBridge: config.tokenAddresses[config.network].coreBridge,
+                    tokenBridge: config.tokenAddresses[config.network].tokenBridge,
                 },
             },
         },
@@ -64,7 +60,30 @@ export async function createAndSendWormholeMsg(params: {
     }
 
     const { addr: solAddr, signer: solSigner } = await getSolanaSigner(wh.getChain("Solana"), wallet);
-    const { addr: suiAddr, signer: suiSigner } = await loadSuiSigner(mnemonicPath);
+
+    // Generate the WebCryptoSigner
+    const suiSignerRaw = await WebCryptoSigner.generate();
+    const suiAddr = suiSignerRaw.getPublicKey().toSuiAddress();
+    const suiClient = getSuiClient();
+    const suiSigner = {
+        chain: (): "Sui" => "Sui",
+        address: (): string => suiAddr,
+        ...suiSignerRaw,
+        async signAndSend(txs: { transaction: any }[]): Promise<string[]> {
+            const results: string[] = [];
+    
+            for (const tx of txs) {
+                const result = await suiClient.signAndExecuteTransaction({
+                    signer: suiSignerRaw,
+                    transaction: tx.transaction, // Adjusted to match the expected structure
+                    options: { showEffects: false, showEvents: false },
+                });
+                results.push(result.digest);
+            }
+    
+            return results;
+        },
+    };
 
     const wsSol = config.tokenAddresses[config.network].wsSol;
     const tokenId: TokenId = Wormhole.tokenId("Solana", wsSol);
@@ -114,7 +133,7 @@ export async function createAndSendWormholeMsg(params: {
         tokenId,
         transferAmount,
         Wormhole.chainAddress("Solana", solAddr),
-        Wormhole.chainAddress("Sui", suiAddr.address()),
+        Wormhole.chainAddress("Sui", suiAddr),
         false
     );
 
@@ -126,32 +145,23 @@ export async function createAndSendWormholeMsg(params: {
     const vaa = await xfer.fetchAttestation(10 * 60_000);
     console.log("[✅] VAA received. Attempting Sui claim...");
     await new Promise((res) => setTimeout(res, 60000));
-    try{ 
+
+    try {
         const suiTxs = await xfer.completeTransfer(suiSigner);
         console.log(`[✅] Sui claim succeeded with TX: ${suiTxs}`);
         return Array.isArray(suiTxs) ? suiTxs[0] : suiTxs;
     } catch (err: any) {
         const msg = err?.message || err?.toString() || "";
-        const isTransient = msg.includes("Package object does not exist")
-            || msg.includes("coin::update_symbol")
-            || msg.includes("assert_package_upgrade_cap")
-            || msg.includes("get_decimals")
-            || msg.includes("token_address");
+        const isTransient =
+            msg.includes("Package object does not exist") ||
+            msg.includes("coin::update_symbol") ||
+            msg.includes("assert_package_upgrade_cap") ||
+            msg.includes("get_decimals") ||
+            msg.includes("token_address");
 
         if (!isTransient) throw err;
-
         await new Promise((res) => setTimeout(res, 5000));
     }
-}
 
-async function loadSuiSigner(mnemonicPath: string) {
-    if (!fs.existsSync(mnemonicPath)) {
-        throw new Error(`[❌] Sui wallet file not found at ${mnemonicPath}`);
-    }
-    const data = JSON.parse(fs.readFileSync(mnemonicPath, "utf8"));
-    const mnemonic = data.mnemonic;
-    if (!mnemonic || typeof mnemonic !== "string") {
-        throw new Error(`[❌] Invalid mnemonic in file: ${mnemonicPath}`);
-    }
-    return await getSuiSigner(mnemonic);
+    throw new Error("[❌] Sui transfer failed after retry.");
 }

@@ -2,9 +2,10 @@ import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
 import { getSuiClient } from "../config";
 import { fetchConversionRates } from "../utils/encoding";
 import { swapWSOLtoWAL } from "./dexRouter";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import fs from "fs";
 import { execSync } from "child_process";
+import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
 
 /**
  * Attempts a gas-free swap of WSOL → WAL on mainnet or SUI → WAL on testnet.
@@ -14,12 +15,11 @@ export async function isAstrosGasFreeSwapAvailable(
   walCoinType: string,
   amountInWSOL: number,
   sender: string,
-  network: "testnet" | "mainnet",
-  mnemonicPath: string,
-  suiCliPath?: string
+  network: "testnet" | "mainnet"
 ): Promise<boolean> {
   try {
     const suiClient = getSuiClient();
+    const { signer: suiSigner, addr: suiAddress } = await getWebCryptoSigner();
 
     // ✅ Testnet Flow: swap SUI → WAL using CLI
     if (network === "testnet") {
@@ -45,7 +45,7 @@ export async function isAstrosGasFreeSwapAvailable(
       const estimatedSUIInMist = Math.floor(estimatedSUI).toString();
       console.log(`[💱] Estimated SUI for ${amountInWSOL} WAL: ${estimatedSUIInMist} MIST`);
 
-      const walrusPath = suiCliPath || "/usr/local/bin/walrus";
+      const walrusPath = "/usr/local/bin/walrus";
       if (!fs.existsSync(walrusPath)) {
         throw new Error(`[❌] Walrus CLI not found at ${walrusPath}`);
       }
@@ -67,18 +67,6 @@ export async function isAstrosGasFreeSwapAvailable(
     // ✅ Mainnet Flow: swap WSOL → WAL using Aftermath
     console.log(`[📈] Swapping exactly ${amountInWSOL} WSOL → WAL`);
 
-    if (!fs.existsSync(mnemonicPath)) {
-      throw new Error(`[❌] Mnemonic file not found at ${mnemonicPath}`);
-    }
-
-    const mnemonicData = JSON.parse(fs.readFileSync(mnemonicPath, "utf8"));
-    const mnemonic = mnemonicData.mnemonic;
-    if (!mnemonic) {
-      throw new Error("[❌] Mnemonic file is missing the 'mnemonic' key");
-    }
-
-    const suiKeypair = Ed25519Keypair.deriveKeypair(mnemonic);
-
     const swapConfig = {
       wSol: "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
       wal: walCoinType,
@@ -88,10 +76,10 @@ export async function isAstrosGasFreeSwapAvailable(
     console.log(`[🔑] Sender: ${sender}`);
 
     const txDigest = await swapWSOLtoWAL({
-      signer: suiKeypair,
+      signer: suiSigner,
       wsSolCoinType: swapConfig.wSol,
       walCoinType: swapConfig.wal,
-      amount: amountInWSOL.toString(), 
+      amount: amountInWSOL.toString(),
     });
 
     console.log(`[✅] Aftermath swap complete. TX: ${txDigest}`);

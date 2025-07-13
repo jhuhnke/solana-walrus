@@ -1,4 +1,6 @@
 import { configureSDK, getSDKConfig, getSuiClient, getWalrusClient } from "../config";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
+import { Keypair } from "@solana/web3.js";
 import { uploadFile } from "../solana/upload";
 import { deleteFile } from "../solana/delete";
 import { getBlobData } from "../walrus/read";
@@ -29,15 +31,20 @@ export class WalrusSolanaSDK {
     }
 
     /**
-     * Delete a blob from Walrus using its object ID.
+     * Delete a blob from Walrus using its object ID and Solana wallet path.
      */
-    async delete(blobObjectId: string, walletPath: string, mnemonicPath: string): Promise<void> {
+    async delete({
+        blobObjectId,
+        walletPath,
+    }: {
+        blobObjectId: string;
+        walletPath: string;
+    }): Promise<void> {
         return deleteFile({
             blobObjectId,
             walletPath,
-            mnemonicPath,
         });
-    }
+    }    
 
     /**
      * Read a file by blob ID.

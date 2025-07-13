@@ -12,8 +12,8 @@ export interface UploadOptions {
   epochs?: number;
   deletable?: boolean;
   connection?: Connection;
-  mnemonicPath: string; 
-  suiPath: string;
+  mnemonicPath?: string; 
+  suiPath?: string;
 }
 
 export interface WormholePayload {

@@ -1,6 +1,6 @@
 {
   "name": "solana-walrus",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "TypeScript SDK for uploading, downloading, and managing Walrus blobs using a Solana wallet",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,14 +31,19 @@
     "upload",
     "web3"
   ],
-  "author": "@web3_analyst",
+  "author": "Jessica | x: @web3_analyst",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/solana-walrus"
+    "url": "git+https://github.com/jhuhnke/solana-walrus.git"
   },
+  "bugs": {
+    "url": "https://github.com/jhuhnke/solana-walrus/issues"
+  },
+  "homepage": "https://github.com/jhuhnke/solana-walrus#readme",
   "dependencies": {
     "@mysten/deepbook-v3": "^0.14.7",
+    "@mysten/signers": "^0.3.0",
     "@mysten/sui": "^1.29.1",
     "@mysten/walrus": "^0.0.19",
     "@noble/curves": "^1.9.0",
@@ -52,7 +57,9 @@
     "aftermath-ts-sdk": "^1.2.69",
     "axios": "^1.8.4",
     "bs58": "^6.0.0",
+    "ed25519-hd-key": "^1.3.0",
     "fetch-blob": "^4.0.0",
+    "idb-keyval": "^6.2.2",
     "kriya-v3-sdk": "^2.0.23",
     "node-fetch": "^3.3.2"
   },

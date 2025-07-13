@@ -8,6 +8,8 @@ export type Network = "testnet" | "mainnet";
 export interface TokenAddresses {
 	wsSol: string;
 	wal: string;
+	coreBridge: string;
+	tokenBridge: string;
 }
 
 export interface SDKConfig {

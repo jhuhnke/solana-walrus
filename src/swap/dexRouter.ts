@@ -1,6 +1,7 @@
 import { Aftermath } from "aftermath-ts-sdk";
 import { SuiClient } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { Transaction } from "@mysten/sui/transactions";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 
 /**
  * Swap WSOL to WAL using Aftermath Smart Order Router on MAINNET.
@@ -12,7 +13,7 @@ export async function swapWSOLtoWAL({
 	walCoinType,
 	amount,
 }: {
-	signer: Ed25519Keypair;
+	signer: WebCryptoSigner;
 	wsSolCoinType: string;
 	walCoinType: string;
 	amount: string;
@@ -36,14 +37,14 @@ export async function swapWSOLtoWAL({
 		});
 		if (!route) throw new Error("No viable trade route found");
 
-		// ✅ Let Aftermath build full transaction (including coin selection)
-		const tx = await router.getTransactionForCompleteTradeRoute({
+		// ✅ Let Aftermath build full TransactionBlock
+		const tx: Transaction = await router.getTransactionForCompleteTradeRoute({
 			walletAddress: sender,
 			completeRoute: route,
 			slippage: 0.02,
 		});
 
-		// ✅ Execute
+		// ✅ Execute with WebCryptoSigner
 		const result = await suiClient.signAndExecuteTransaction({
 			signer,
 			transaction: tx,
