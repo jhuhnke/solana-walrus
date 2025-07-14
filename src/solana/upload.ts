@@ -7,6 +7,7 @@ import { finalizeUploadOnSui } from "../walrus/upload";
 import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
 import { UploadOptions } from "../types";
 import { Connection, Keypair } from "@solana/web3.js";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import fs from "fs";
 
 const CUSTOM_RPC_URL_DEVNET = "https://api.devnet.solana.com";
@@ -22,7 +23,6 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		file,
 		wallet,
 		suiReceiverAddress,
-		suiKeypair: userProvidedSuiKeypair,
 		epochs,
 		deletable,
 		connection,
@@ -95,7 +95,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 	console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
 
 	const result = await finalizeUploadOnSui({
-		suiKeypair: suiSigner,
+		suiSigner: suiSigner as WebCryptoSigner,
 		fileBytes,
 		epochs,
 		deletable,

@@ -1,25 +1,27 @@
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import { getWalrusClient } from "../config";
 
 /**
  * Delete a blob on Sui.
  */
-export async function deleteBlob(blobObjectId: string, suiKeypair: Ed25519Keypair) {
-    const walrusClient = getWalrusClient();
+export async function deleteBlob(
+  blobObjectId: string,
+  signer: WebCryptoSigner
+): Promise<{ digest: string }> {
+  const walrusClient = getWalrusClient();
 
-    console.log(`[🗑️] Deleting blob: ${blobObjectId}...`);
+  console.log(`[🗑️] Deleting blob: ${blobObjectId}...`);
 
-    try {
-        // ✅ Use the built-in delete method from WalrusClient
-        const result = await walrusClient.executeDeleteBlobTransaction({
-            signer: suiKeypair,
-            blobObjectId,
-        });
+  try {
+    const result = await walrusClient.executeDeleteBlobTransaction({
+      signer,
+      blobObjectId,
+    });
 
-        console.log(`[✅] Blob deleted: ${blobObjectId}`);
-        return result;
-    } catch (error) {
-        console.error("[❌] Failed to delete blob:", error);
-        throw error;
-    }
+    console.log(`[✅] Blob deleted: ${blobObjectId}`);
+    return result;
+  } catch (error) {
+    console.error("[❌] Failed to delete blob:", error);
+    throw error;
+  }
 }

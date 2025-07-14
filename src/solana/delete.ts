@@ -1,6 +1,7 @@
 import { Connection, Keypair } from "@solana/web3.js";
 import { deleteBlob } from "../walrus/delete";
-import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
+import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import fs from "fs";
 
 /**
@@ -30,7 +31,7 @@ export async function deleteFile(options: {
 	console.log(`[🔑] Loaded Solana wallet: ${solanaWallet.publicKey.toBase58()}`);
 
 	// ✅ Load the persisted WebCrypto signer
-	const { signer: suiSigner, addr: suiAddr } = await getWebCryptoSigner();
+	const { signer: suiSigner, addr: suiAddr }: { signer: WebCryptoSigner; addr: string } = await getWebCryptoSigner();
 	console.log(`[🔑] Loaded WebCrypto Sui signer: ${suiAddr}`);
 
 	// ✅ Use provided connection or default
@@ -38,7 +39,7 @@ export async function deleteFile(options: {
 
 	// ✅ Call the Sui-side deletion logic
 	try {
-		await deleteBlob(blobObjectId, suiSigner);
+		await deleteBlob(blobObjectId, suiSigner); // <-- fixed call (pass as 2 arguments, not object)
 		console.log(`[🗑️] Deleted blob: ${blobObjectId}`);
 	} catch (error: any) {
 		console.error(`[❌] Failed to delete blob: ${error.message}`);

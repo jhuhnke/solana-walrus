@@ -1,4 +1,4 @@
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import { getSuiClient, getWalrusClient, getSDKConfig } from "../config";
 
 export interface FinalizeUploadResult {
@@ -8,7 +8,7 @@ export interface FinalizeUploadResult {
 }
 
 export interface FinalizeUploadOptions {
-    suiKeypair: Ed25519Keypair;
+    suiSigner: WebCryptoSigner;
     fileBytes: Uint8Array;
     deletable?: boolean;
     epochs?: number;
@@ -19,8 +19,8 @@ export interface FinalizeUploadOptions {
  */
 export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promise<FinalizeUploadResult> {
     try {
-        const { suiKeypair, fileBytes, deletable = true, epochs = 3 } = options;
-        const sender = suiKeypair.getPublicKey().toSuiAddress();
+        const { suiSigner, fileBytes, deletable = true, epochs = 3 } = options;
+        const sender = suiSigner.getPublicKey().toSuiAddress();
 
         const suiClient = getSuiClient();
         const walrusClient = getWalrusClient();
@@ -30,7 +30,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         console.log(`[✅] Using WAL coin type: ${wal}`);
         console.log(`[🔑] Sui Sender Address: ${sender}`);
 
-        // ✅ Skip WAL balance enforcement — assume swap already occurred
+        // ✅ Skip WAL balance enforcement 
         console.log(`[ℹ️] Skipping WSOL → WAL fallback. Assuming WAL balance is already handled.`);
 
         // 1. Encode the file
@@ -50,7 +50,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
 
         const registerResult = await suiClient.signAndExecuteTransaction({
-            signer: suiKeypair,
+            signer: suiSigner,
             transaction: registerTx,
             options: { showEffects: true, showObjectChanges: true },
         });
@@ -91,7 +91,7 @@ export async function finalizeUploadOnSui(options: FinalizeUploadOptions): Promi
         });
 
         const certifyResult = await suiClient.signAndExecuteTransaction({
-            signer: suiKeypair,
+            signer: suiSigner,
             transaction: certifyTx,
             options: { showEffects: true, showObjectChanges: true },
         });
