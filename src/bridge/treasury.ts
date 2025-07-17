@@ -1,51 +1,44 @@
-import { 
-    Connection, 
-    PublicKey, 
-    Transaction, 
-    SystemProgram, 
-    sendAndConfirmTransaction, 
-    Keypair, 
-} from '@solana/web3.js'; 
-import { PROTOCOL_TREASURY_ADDRESS } from '../config'; 
+import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
+import { Transaction } from "@mysten/sui/transactions";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { PROTOCOL_TREASURY_ADDRESS } from "../config";
 
 export async function transferProtocolFee({
-    connection, 
-    payer, 
-    amountSOL, 
+  signer,
+  amountSUI,
 }: {
-    connection: Connection; 
-    payer: Keypair; 
-    amountSOL: number; 
+  signer: Ed25519Keypair;
+  amountSUI: number;
 }): Promise<{
-    remainingSOL: number; 
-    feePaid: number;
+  remainingSUI: number;
+  feePaid: number;
+  txDigest: string;
 }> {
-    const treasuryPubkey = new PublicKey(PROTOCOL_TREASURY_ADDRESS); 
-    const feePercent = 0.01; 
-    const feeAmount = amountSOL * feePercent; 
+  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
 
-    const lamports = Math.round(feeAmount * 1e9); 
+  const sender = signer.getPublicKey().toSuiAddress();
+  const feePercent = 0.01;
+  const feeAmount = amountSUI * feePercent;
+  const feeInMist = Math.floor(feeAmount * 1e9); // 1 SUI = 1e9 MIST
 
-    // Add recent blockhash
-    const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+  const tx = new Transaction();
 
-    const transaction = new Transaction({
-        recentBlockhash,
-        feePayer: payer.publicKey,
-    }).add(
-        SystemProgram.transfer({
-            fromPubkey: payer.publicKey, 
-            toPubkey: treasuryPubkey, 
-            lamports,
-        })
-    ); 
+  // Split a coin from gas
+  const [feeCoin] = tx.splitCoins(tx.gas, [feeInMist]);
 
-    // Sign and send transaction
-    transaction.partialSign(payer);
-    await sendAndConfirmTransaction(connection, transaction, [payer]);
+  // Send to treasury
+  tx.transferObjects([feeCoin], PROTOCOL_TREASURY_ADDRESS);
+  tx.setSender(sender);
 
-    return {
-        remainingSOL: amountSOL - feeAmount, 
-        feePaid: feeAmount, 
-    };
+  const result = await client.signAndExecuteTransaction({
+    transaction: tx,
+    signer,
+    options: { showEffects: true },
+  });
+
+  return {
+    remainingSUI: amountSUI - feeAmount,
+    feePaid: feeAmount,
+    txDigest: result.digest,
+  };
 }

@@ -110,8 +110,8 @@ export function getWalrusClient(): WalrusClient {
 	return walrusClient;
 }
 
-// 🔐 Static treasury address (SOL)
-export const PROTOCOL_TREASURY_ADDRESS = "GBMTWhsnLAPxLXcwDoFu45VrzBYuCyGU5eLSavksR1Qc";
+// Static treasury address (SUI Faucet Address)
+export const PROTOCOL_TREASURY_ADDRESS = "0x26da57b545b73a4e56405bf4f134473c501259ec3ab027bc3334e2dee780f11b";
 
 /**
  * Optional: provide a helper for default RPC fallback
