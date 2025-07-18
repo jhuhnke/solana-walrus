@@ -22,8 +22,8 @@ import solana from "@wormhole-foundation/sdk/solana";
 import sui from "@wormhole-foundation/sdk/sui";
 import { getSuiClient } from "../config";
 import { getSolanaSigner } from "../wallets/solana";
-import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import { getSDKConfig, getDefaultSolanaRpc } from "../config";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 
 function toWormholeNetwork(net: string): "Mainnet" | "Testnet" {
 	return net === "mainnet" ? "Mainnet" : "Testnet";
@@ -35,12 +35,13 @@ export async function createAndSendWormholeMsg(params: {
 	amountSOL: number;
 	wallet: Keypair;
 	suiReceiver?: string;
+	suiSigner: WebCryptoSigner; 
 }): Promise<string> {
-	const { amountSOL, wallet, suiReceiver } = params;
+	const { amountSOL, wallet, suiReceiver, suiSigner } = params;
 
 	if (typeof suiReceiver !== "string" || !suiReceiver.startsWith("0x")) {
-        throw new Error(`[❌] Invalid or missing Sui receiver address: ${suiReceiver}`);
-    }
+		throw new Error(`[❌] Invalid or missing Sui receiver address: ${suiReceiver}`);
+	}
 
 	const config = getSDKConfig();
 	const rpc = config.solanaRpcUrl || getDefaultSolanaRpc(config.network);
@@ -59,25 +60,23 @@ export async function createAndSendWormholeMsg(params: {
 	});
 
 	const actualBridge = wh.getChain("Sui").config.contracts.tokenBridge;
-    if (actualBridge.startsWith("0x26")) {
+	if (actualBridge.startsWith("0x26")) {
 		throw new Error(`[❌] Contract override NOT applied. Deprecated tokenBridge package: ${actualBridge}`);
 	}
 
 	const { addr: solAddr, signer: solSigner } = await getSolanaSigner(wh.getChain("Solana"), wallet);
 
-	// 🔐 Generate new Sui signer
-	const suiSignerRaw = await WebCryptoSigner.generate();
-	const suiAddr = suiSignerRaw.getPublicKey().toSuiAddress();
 	const suiClient = getSuiClient();
-	const suiSigner = {
+	const suiAddr = suiSigner.getPublicKey().toSuiAddress();
+	const wrappedSuiSigner = {
 		chain: (): "Sui" => "Sui",
 		address: (): string => suiAddr,
-		...suiSignerRaw,
+		...suiSigner,
 		async signAndSend(txs: { transaction: any }[]): Promise<string[]> {
 			const results: string[] = [];
 			for (const tx of txs) {
 				const result = await suiClient.signAndExecuteTransaction({
-					signer: suiSignerRaw,
+					signer: suiSigner,
 					transaction: tx.transaction,
 					options: { showEffects: false, showEvents: false },
 				});
@@ -150,7 +149,7 @@ export async function createAndSendWormholeMsg(params: {
 	await new Promise((res) => setTimeout(res, 60000));
 
 	try {
-		const suiTxs = await xfer.completeTransfer(suiSigner);
+		const suiTxs = await xfer.completeTransfer(wrappedSuiSigner);
 		console.log(`[✅] Sui claim succeeded with TX: ${suiTxs}`);
 		return Array.isArray(suiTxs) ? suiTxs[0] : suiTxs;
 	} catch (err: any) {

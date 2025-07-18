@@ -7,6 +7,7 @@ export type Network = "testnet" | "mainnet";
 
 export interface TokenAddresses {
 	wsSol: string;
+	WSOL: string;
 	wal: string;
 	coreBridge: string;
 	tokenBridge: string;

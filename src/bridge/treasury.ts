@@ -1,44 +1,34 @@
-import { SuiClient, getFullnodeUrl } from "@mysten/sui/client";
 import { Transaction } from "@mysten/sui/transactions";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { PROTOCOL_TREASURY_ADDRESS } from "../config";
+import { getSuiClient } from "../config";
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
+
+const PROTOCOL_TREASURY_ADDRESS = "0x26da57b545b73a4e56405bf4f134473c501259ec3ab027bc3334e2dee780f11b";
 
 export async function transferProtocolFee({
-  signer,
-  amountSUI,
+	signer,
+	amountSUI,
 }: {
-  signer: Ed25519Keypair;
-  amountSUI: number;
+	signer: WebCryptoSigner;
+	amountSUI: number;
 }): Promise<{
-  remainingSUI: number;
-  feePaid: number;
-  txDigest: string;
+	txDigest: string;
 }> {
-  const client = new SuiClient({ url: getFullnodeUrl("mainnet") });
+  const client = getSuiClient();
+	const tx = new Transaction();
 
-  const sender = signer.getPublicKey().toSuiAddress();
-  const feePercent = 0.01;
-  const feeAmount = amountSUI * feePercent;
-  const feeInMist = Math.floor(feeAmount * 1e9); // 1 SUI = 1e9 MIST
+	const sender = (await signer.getPublicKey()).toSuiAddress();
+	tx.setSender(sender);
 
-  const tx = new Transaction();
+	const feeInMist = Math.floor(amountSUI * 1e9); // 1 SUI = 10^9 MIST
+	const [feeCoin] = tx.splitCoins(tx.gas, [tx.pure('u64', feeInMist)]);
 
-  // Split a coin from gas
-  const [feeCoin] = tx.splitCoins(tx.gas, [feeInMist]);
+	tx.transferObjects([feeCoin], tx.pure('address', PROTOCOL_TREASURY_ADDRESS));
 
-  // Send to treasury
-  tx.transferObjects([feeCoin], PROTOCOL_TREASURY_ADDRESS);
-  tx.setSender(sender);
+	const res = await client.signAndExecuteTransaction({
+		transaction: tx,
+		signer,
+		options: { showEffects: true },
+	});
 
-  const result = await client.signAndExecuteTransaction({
-    transaction: tx,
-    signer,
-    options: { showEffects: true },
-  });
-
-  return {
-    remainingSUI: amountSUI - feeAmount,
-    feePaid: feeAmount,
-    txDigest: result.digest,
-  };
+	return { txDigest: res.digest };
 }

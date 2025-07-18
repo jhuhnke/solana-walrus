@@ -2,26 +2,28 @@ import { requestSuiFromFaucetV2, getFaucetHost } from "@mysten/sui/faucet";
 import { getSuiClient } from "../config";
 import { fetchConversionRates } from "../utils/encoding";
 import { swapWSOLtoWAL } from "./dexRouter";
-import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 import fs from "fs";
 import { execSync } from "child_process";
-import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
+import { WebCryptoSigner } from "@mysten/signers/webcrypto";
 
 /**
  * Attempts a gas-free swap of WSOL → WAL on mainnet or SUI → WAL on testnet.
+ * @param walCoinType - The WAL coin type.
  * @param amountInWSOL - Exact WSOL amount received on SUI, in base units (lamports).
+ * @param sender - The SUI address initiating the swap.
+ * @param network - Either "testnet" or "mainnet".
+ * @param suiSigner - The already instantiated SUI signer.
  */
 export async function isAstrosGasFreeSwapAvailable(
   walCoinType: string,
   amountInWSOL: number,
   sender: string,
-  network: "testnet" | "mainnet"
+  network: "testnet" | "mainnet",
+  suiSigner: WebCryptoSigner
 ): Promise<boolean> {
   try {
     const suiClient = getSuiClient();
-    const { signer: suiSigner, addr: suiAddress } = await getWebCryptoSigner();
 
-    // ✅ Testnet Flow: swap SUI → WAL using CLI
     if (network === "testnet") {
       const balances = await suiClient.getBalance({
         owner: sender,
@@ -64,7 +66,7 @@ export async function isAstrosGasFreeSwapAvailable(
       return true;
     }
 
-    // ✅ Mainnet Flow: swap WSOL → WAL using Aftermath
+    // === MAINNET ===
     console.log(`[📈] Swapping exactly ${amountInWSOL} WSOL → WAL`);
 
     const swapConfig = {

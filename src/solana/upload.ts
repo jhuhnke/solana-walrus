@@ -1,15 +1,13 @@
-import { getSDKConfig } from "../config";
+import { configureSDK, getSDKConfig } from "../config";
+import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
 import { getStorageQuote, hashFile, fetchConversionRates } from "../utils/encoding";
 import { createAndSendWormholeMsg } from "../bridge/wormhole";
 import { transferProtocolFee } from "../bridge/treasury";
 import { isAstrosGasFreeSwapAvailable } from "../swap/astrosUtils";
 import { finalizeUploadOnSui } from "../walrus/upload";
-import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
+import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair";
 import { UploadOptions } from "../types";
 import { Connection, Keypair } from "@solana/web3.js";
-import { WebCryptoSigner } from "@mysten/signers/webcrypto";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { fromB64 } from "@mysten/bcs";
 import fs from "fs";
 
 const CUSTOM_RPC_URL_DEVNET = "https://api.devnet.solana.com";
@@ -20,14 +18,9 @@ function getCustomConnection(network: string): Connection {
 	return new Connection(url, "confirmed");
 }
 
-function convertToEd25519Keypair(signer: WebCryptoSigner): Ed25519Keypair {
-	const exported = signer.export();
-	if (!("privateKey" in exported)) {
-		throw new Error("WebCryptoSigner does not expose a private key. Use a supported signer.");
-	}
-	const secretKeyB64 = (exported as any).privateKey.k;
-	const secretKeyBytes = fromB64(secretKeyB64);
-	return Ed25519Keypair.fromSecretKey(secretKeyBytes);
+async function getCoinBalance(client: SuiClient, owner: string, coinType: string): Promise<bigint> {
+	const response = await client.getCoins({ owner, coinType });
+	return response.data.reduce((acc, coin) => acc + BigInt(coin.balance), 0n);
 }
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
@@ -55,7 +48,13 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 	const fileSize = fileBytes.length;
 	console.log(`[✅] File size: ${fileSize} bytes, Hash: ${fileHash}`);
 
-	// ✅ Resolve Sui signer
+	const config = getSDKConfig();
+	configureSDK({
+		network: config.network,
+		suiUrl: getFullnodeUrl(config.network),
+		tokenAddresses: config.tokenAddresses,
+	});
+
 	const { signer: suiSigner, addr: suiAddress } = await getWebCryptoSigner();
 	const suiReceiver =
 		suiReceiverAddress && suiReceiverAddress.startsWith("0x")
@@ -64,8 +63,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 
 	console.log(`[✅] Sui signer resolved. Address: ${suiReceiver}`);
 
-	const config = getSDKConfig();
-	const { wal } = config.tokenAddresses[config.network];
+	const { wal, WSOL } = config.tokenAddresses[config.network];
 	const solanaConnection = connection || getCustomConnection(config.network);
 
 	const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
@@ -77,37 +75,69 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		console.log(`[📈] Mainnet buffer applied. Adjusted WAL estimate: ${estimatedWAL.toFixed(9)} WAL`);
 	}
 
-	const totalWALWithFees = estimatedWAL * 1.02;
-	console.log(`[✅] Total WAL after 2% fees: ${totalWALWithFees.toFixed(9)} WAL`);
+	const totalWALWithFees = Math.ceil(estimatedWAL * 1.05 * 1.05 * 1e9) / 1e9;
+	console.log(`[✅] Total WAL after 10% buffer: ${totalWALWithFees.toFixed(9)} WAL`);
 
 	const { walToSol } = await fetchConversionRates();
 	const totalSOL = totalWALWithFees * walToSol;
 	console.log(`[💱] Converted WAL → SOL: ${totalSOL.toFixed(9)} SOL`);
 
-	const remainingSOL = totalSOL;
-
 	await createAndSendWormholeMsg({
 		fileHash,
 		fileSize,
-		amountSOL: remainingSOL,
+		amountSOL: totalSOL,
 		wallet,
 		suiReceiver,
+		suiSigner,
 	});
+
 	console.log(`[✅] Wormhole message sent successfully.`);
 
-	const bridgedWSOLInLamports = Math.floor(remainingSOL * 1e9);
-	const gasFree = await isAstrosGasFreeSwapAvailable(
-		wal,
-		bridgedWSOLInLamports,
-		suiReceiver,
-		config.network
-	);
-	console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
+	const suiClient = new SuiClient({
+		url: config.suiUrl || getFullnodeUrl(config.network),
+		network: config.network,
+	});
+	
+	async function waitForWSOLBalance(
+		client: SuiClient,
+		owner: string,
+		coinType: string,
+		retries = 10,
+		delayMs = 1000,
+	): Promise<bigint> {
+		for (let i = 0; i < retries; i++) {
+			const balance = await getCoinBalance(client, owner, coinType);
+			if (balance > 0n) return balance;
+			console.log(`[⏳] Waiting for WSOL balance... Attempt ${i + 1}/${retries}`);
+			await new Promise((res) => setTimeout(res, delayMs));
+		}
+		throw new Error("Timed out waiting for WSOL balance on SUI.");
+	}
+	const totalWSOL = await waitForWSOLBalance(suiClient, suiReceiver, WSOL);	
+	console.log(`[🪙] Total WSOL balance for ${suiReceiver}: ${totalWSOL}`);
+	if (totalWSOL > 0n) {
+		const totalWSOLNumber = Number(totalWSOL);
+		if (totalWSOL > BigInt(Number.MAX_SAFE_INTEGER)) {
+			throw new Error("WSOL amount exceeds safe integer range.");
+		}
+
+		const gasFree = await isAstrosGasFreeSwapAvailable(
+			wal,
+			totalWSOLNumber,
+			suiReceiver,
+			config.network,
+			suiSigner
+		);
+		console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
+	}
+
+	else {
+		console.warn("[⚠️] No WSOL to swap for WAL. Skipping.");
+	}
 
 	const feeSUI = totalSOL * 0.01;
-	const suiKeypair = convertToEd25519Keypair(suiSigner);
 	const { txDigest } = await transferProtocolFee({
-		signer: suiKeypair,
+		signer: suiSigner,
 		amountSUI: feeSUI,
 	});
 	console.log(`[✅] Protocol fee of ${feeSUI} SUI sent via tx: ${txDigest}`);

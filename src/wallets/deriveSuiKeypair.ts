@@ -6,8 +6,8 @@ import fetch from "node-fetch";
 
 // === HARD-CODED FAUCET CONFIG ===
 const FAUCET_URL = "http://localhost:3001";
-const FAUCET_API_KEY = "cfd84c8b556bac2cd5f53be2d6691784d08361c81264cebeb3a01de4f1693c72";
-const FAUCET_AMOUNT = "0.005"; 
+const FAUCET_API_KEY = "key_here";
+const FAUCET_AMOUNT = "0.02"; 
 
 // === PATH TO LOCAL SIGNER FILE ===
 const KEY_PATH = path.resolve(__dirname, "./sui-webcrypto-key.json");
@@ -47,8 +47,8 @@ export async function getWebCryptoSigner(): Promise<{
 }> {
   let signer: WebCryptoSigner;
 
-  const saveKey = async (signer: WebCryptoSigner) => {
-    const exported = await signer.export();
+  const saveKey = async (signerToSave: WebCryptoSigner) => {
+    const exported = await signerToSave.export();
     const jsonToSave = JSON.stringify({
       privateKey: exported.privateKey,
       publicKey: Array.from(exported.publicKey),
@@ -60,7 +60,6 @@ export async function getWebCryptoSigner(): Promise<{
   if (fs.existsSync(KEY_PATH)) {
     try {
       console.log("[🔑] Loading existing key...");
-
       const exportedJson = fs.readFileSync(KEY_PATH, "utf8");
       const exported: ExportedWebCryptoKeypair = JSON.parse(exportedJson);
 
@@ -81,7 +80,6 @@ export async function getWebCryptoSigner(): Promise<{
     } catch (e: any) {
       console.warn("[❌] Failed to import key. Regenerating...");
       fs.unlinkSync(KEY_PATH);
-
       signer = await WebCryptoSigner.generate({ extractable: true });
       await saveKey(signer);
     }

@@ -1,5 +1,4 @@
 import { WalrusSolanaSDK } from "../sdk";
-import { getWebCryptoSigner } from "../wallets/deriveSuiKeypair"; 
 import { Keypair } from "@solana/web3.js";
 import fs from "fs";
 import path from "path";
@@ -16,12 +15,14 @@ async function main() {
 			tokenAddresses: {
 				mainnet: {
 					wsSol: "So11111111111111111111111111111111111111112",
+					WSOL: "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
 					wal: "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
 					coreBridge: "0xaeab97f96cf9877fee2883315d459552b2b921edc16d7ceac6eab944dd88919c",
 					tokenBridge: "0xc57508ee0d4595e5a8728974a4a93a787d38f339757230d441e895422c07aba9",
 				  },
 				  testnet: {
 					wsSol: "So11111111111111111111111111111111111111112",
+					WSOL: "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
 					wal: "0x8270feb7375eee355e64fdb69c50abb6b5f9393a722883c1cf45f8e26048810a::wal::WAL",
 					coreBridge: "0x31358d198147da50db32eda2562951d53973a0c0ad5ed738e9b17d88b213d790",
 					tokenBridge: "0x6fb10cdb7aa299e9a4308752dadecb049ff55a892de92992a1edbd7912b3d6da"
@@ -38,10 +39,6 @@ async function main() {
 		}
 		const secretKeyData = JSON.parse(fs.readFileSync(solanaWalletPath, "utf8"));
 		const solanaWallet = Keypair.fromSecretKey(Uint8Array.from(secretKeyData));
-
-		// ✅ Load WebCryptoSigner
-		const { signer: suiSigner, addr: suiAddress } = await getWebCryptoSigner();
-		console.log(`[✅] Sui signer loaded. Address: ${suiAddress}`);
 
 		// ✅ Read File
 		const filePath = path.join(baseDir, "test.txt");
