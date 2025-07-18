@@ -24,24 +24,11 @@ async function getCoinBalance(client: SuiClient, owner: string, coinType: string
 }
 
 export async function uploadFile(options: UploadOptions): Promise<string> {
-	const {
-		file,
-		wallet,
-		suiReceiverAddress,
-		epochs,
-		deletable,
-		connection,
-	} = options;
-
+	const { file, wallet, suiReceiverAddress, epochs, deletable, connection } = options;
 	console.log("[📤] Starting file upload...");
 
-	if (!(wallet instanceof Keypair)) {
-		throw new Error("[❌] Expected a Solana Keypair for the payer.");
-	}
-
-	if (typeof file !== "string" || !fs.existsSync(file)) {
-		throw new Error(`[❌] Invalid file path: ${file}`);
-	}
+	if (!(wallet instanceof Keypair)) throw new Error("[❌] Expected a Solana Keypair.");
+	if (typeof file !== "string" || !fs.existsSync(file)) throw new Error(`[❌] Invalid file path: ${file}`);
 
 	const fileBytes = fs.readFileSync(file);
 	const fileHash = await hashFile(fileBytes);
@@ -56,16 +43,14 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 	});
 
 	const { signer: suiSigner, addr: suiAddress } = await getWebCryptoSigner();
-	const suiReceiver =
-		suiReceiverAddress && suiReceiverAddress.startsWith("0x")
-			? suiReceiverAddress
-			: suiAddress;
-
+	const suiReceiver = suiReceiverAddress?.startsWith("0x") ? suiReceiverAddress : suiAddress;
 	console.log(`[✅] Sui signer resolved. Address: ${suiReceiver}`);
 
 	const { wal, WSOL } = config.tokenAddresses[config.network];
+	const suiClient = new SuiClient({ url: config.suiUrl || getFullnodeUrl(config.network) });
 	const solanaConnection = connection || getCustomConnection(config.network);
 
+	// Quote
 	const quote = await getStorageQuote({ bytes: fileSize, epochs, deletable });
 	let estimatedWAL = quote.totalCost;
 	console.log(`[✅] Storage quote received. Total cost: ${estimatedWAL} WAL`);
@@ -82,6 +67,7 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 	const totalSOL = totalWALWithFees * walToSol;
 	console.log(`[💱] Converted WAL → SOL: ${totalSOL.toFixed(9)} SOL`);
 
+	// Bridge WSOL via Wormhole
 	await createAndSendWormholeMsg({
 		fileHash,
 		fileSize,
@@ -90,14 +76,9 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		suiReceiver,
 		suiSigner,
 	});
-
 	console.log(`[✅] Wormhole message sent successfully.`);
 
-	const suiClient = new SuiClient({
-		url: config.suiUrl || getFullnodeUrl(config.network),
-		network: config.network,
-	});
-	
+	// Wait for WSOL to arrive
 	async function waitForWSOLBalance(
 		client: SuiClient,
 		owner: string,
@@ -113,42 +94,55 @@ export async function uploadFile(options: UploadOptions): Promise<string> {
 		}
 		throw new Error("Timed out waiting for WSOL balance on SUI.");
 	}
-	const totalWSOL = await waitForWSOLBalance(suiClient, suiReceiver, WSOL);	
-	console.log(`[🪙] Total WSOL balance for ${suiReceiver}: ${totalWSOL}`);
-	if (totalWSOL > 0n) {
-		const totalWSOLNumber = Number(totalWSOL);
-		if (totalWSOL > BigInt(Number.MAX_SAFE_INTEGER)) {
-			throw new Error("WSOL amount exceeds safe integer range.");
-		}
 
+	const totalWSOL = await waitForWSOLBalance(suiClient, suiReceiver, WSOL);
+	console.log(`[🪙] Total WSOL balance for ${suiReceiver}: ${totalWSOL}`);
+
+	// Swap WSOL → WAL
+	if (totalWSOL > 0n) {
+		if (totalWSOL > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("WSOL exceeds JS safe integer range.");
 		const gasFree = await isAstrosGasFreeSwapAvailable(
 			wal,
-			totalWSOLNumber,
+			Number(totalWSOL),
 			suiReceiver,
 			config.network,
 			suiSigner
 		);
 		console.log(`[🔁] Gas-free WAL swap ${gasFree ? "succeeded" : "failed"}.`);
-	}
-
-	else {
+	} else {
 		console.warn("[⚠️] No WSOL to swap for WAL. Skipping.");
 	}
 
+	// Pay protocol fee in SUI (0.01 * totalSOL)
 	const feeSUI = totalSOL * 0.01;
-	const { txDigest } = await transferProtocolFee({
-		signer: suiSigner,
-		amountSUI: feeSUI,
-	});
-	console.log(`[✅] Protocol fee of ${feeSUI} SUI sent via tx: ${txDigest}`);
+	let feeTxDigest: string | null = null;
 
+	for (let i = 0; i < 3; i++) {
+		try {
+			const { txDigest } = await transferProtocolFee({
+				signer: suiSigner,
+				amountSUI: feeSUI,
+			});
+			feeTxDigest = txDigest;
+			console.log(`[✅] Protocol fee of ${feeSUI} SUI sent via tx: ${txDigest}`);
+			break;
+		} catch (err) {
+			console.warn(`[⚠️] Protocol fee attempt ${i + 1} failed. Retrying...`);
+			await new Promise((r) => setTimeout(r, 1000));
+		}
+	}
+
+	if (!feeTxDigest) {
+		throw new Error("Protocol fee payment failed after 3 retries.");
+	}
+
+	// Finalize blob upload
 	const result = await finalizeUploadOnSui({
 		suiSigner,
 		fileBytes,
 		epochs,
 		deletable,
 	});
-
 	console.log(`[✅] Blob uploaded successfully. Blob ID: ${result.blobId}`);
 	return result.blobId;
 }

@@ -6,8 +6,8 @@ import fetch from "node-fetch";
 
 // === HARD-CODED FAUCET CONFIG ===
 const FAUCET_URL = "http://localhost:3001";
-const FAUCET_API_KEY = "key_here";
-const FAUCET_AMOUNT = "0.02"; 
+const FAUCET_API_KEY = "keyyyyy";
+const FAUCET_AMOUNT = "0.025"; 
 
 // === PATH TO LOCAL SIGNER FILE ===
 const KEY_PATH = path.resolve(__dirname, "./sui-webcrypto-key.json");
